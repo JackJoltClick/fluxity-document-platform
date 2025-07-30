@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Simple Mapping Warnings Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-section { margin: 20px 0; padding: 20px; border: 1px solid #ddd; }
+        h2 { color: #333; }
+    </style>
+</head>
+<body>
+    <h1>Simple Mapping Mode Warning Contexts</h1>
+    
+    <div class="test-section">
+        <h2>1. General Context</h2>
+        <p><strong>Used in:</strong> Documents list page</p>
+        <p><strong>Purpose:</strong> General notification that simple mode is active</p>
+        <p><strong>Content:</strong> Basic explanation with benefits/limitations</p>
+    </div>
+    
+    <div class="test-section">
+        <h2>2. Accounting Context</h2>
+        <p><strong>Used in:</strong> Document details page (top banner)</p>
+        <p><strong>Purpose:</strong> Detailed explanation for accounting field processing</p>
+        <p><strong>Content:</strong> Specific impact on business rules, GL accounts, cost centers</p>
+        <p><strong>Features:</strong> Additional workflow impact notice</p>
+    </div>
+    
+    <div class="test-section">
+        <h2>3. Confidence Context</h2>
+        <p><strong>Used in:</strong> Document details page (when confidence > 80%)</p>
+        <p><strong>Purpose:</strong> Explain why confidence scores are high</p>
+        <p><strong>Content:</strong> Clarifies that high scores are from direct mapping, not complex analysis</p>
+        <p><strong>Features:</strong> Different icon (ShieldExclamationIcon)</p>
+    </div>
+    
+    <h2>Improvements Made:</h2>
+    <ul>
+        <li>✅ React Query hook for consistent caching (5min cache)</li>
+        <li>✅ Context-aware content with specific messaging</li>
+        <li>✅ Better performance - no API calls on every render</li>
+        <li>✅ More informative warnings explaining business impact</li>
+        <li>✅ Less technical API responses (business-focused language)</li>
+        <li>✅ Targeted display based on context (confidence levels, page type)</li>
+    </ul>
+</body>
+</html>

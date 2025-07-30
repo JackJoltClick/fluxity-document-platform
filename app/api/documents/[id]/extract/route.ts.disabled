@@ -1,0 +1,211 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { createServerClient } from '@supabase/ssr'
+import { ExtractionRouterService } from '@/src/services/extraction/extraction-router.service'
+import { ExtractionError } from '@/src/types/extraction.types'
+
+export async function POST(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const documentId = params.id
+    
+    console.log(`🔍 Extraction API: Starting extraction for document ${documentId}`)
+    console.log(`🔍 Extraction API: Using intelligent routing`)
+
+    // Get auth token from header (consistent with Stage 12 auth standard)
+    const authHeader = request.headers.get('Authorization')
+    const token = authHeader?.replace('Bearer ', '')
+    
+    console.log('📋 Extraction API: Auth header:', authHeader ? 'exists' : 'missing')
+    console.log('📋 Extraction API: Token:', token ? 'exists' : 'missing')
+    
+    if (!token) {
+      return NextResponse.json(
+        { error: 'No auth token provided' },
+        { status: 401 }
+      )
+    }
+
+    // Create supabase client with token
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          get() { return undefined },
+          set() {},
+          remove() {},
+        },
+        global: {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        },
+      }
+    )
+
+    const { data: { user }, error: userError } = await supabase.auth.getUser()
+
+    if (userError || !user) {
+      console.error('❌ Extraction API: User not authenticated:', userError)
+      return NextResponse.json(
+        { error: 'User not authenticated' },
+        { status: 401 }
+      )
+    }
+
+    // Get document from database
+    const { data: document, error: docError } = await supabase
+      .from('documents')
+      .select('*')
+      .eq('id', documentId)
+      .eq('user_id', user.id) // Security: ensure user can only extract their own documents
+      .single()
+
+    if (docError) {
+      console.error('❌ Extraction API: Document query failed:', docError)
+      if (docError.code === 'PGRST116') {
+        return NextResponse.json(
+          { error: 'Document not found' },
+          { status: 404 }
+        )
+      }
+      return NextResponse.json(
+        { error: 'Database error', details: docError.message },
+        { status: 500 }
+      )
+    }
+
+    if (!document) {
+      return NextResponse.json(
+        { error: 'Document not found' },
+        { status: 404 }
+      )
+    }
+
+    console.log(`✅ Extraction API: Document found - ${document.filename}`)
+    console.log(`🔍 Extraction API: Document file URL - ${document.file_url}`)
+
+    // Initialize extraction router service
+    let extractionService: ExtractionRouterService
+    try {
+      extractionService = new ExtractionRouterService()
+    } catch (serviceError) {
+      console.error(`❌ Extraction API: Failed to initialize extraction router:`, serviceError)
+      return NextResponse.json(
+        { 
+          error: 'Extraction service unavailable', 
+          details: serviceError instanceof Error ? serviceError.message : 'Unknown error'
+        },
+        { status: 503 }
+      )
+    }
+
+    // Perform extraction
+    try {
+      console.log(`🤖 Extraction API: Starting intelligent extraction...`)
+      const extractionResult = await extractionService.extract(document.file_url)
+      const extractionCost = extractionService.getCost()
+      const extractionMethod = extractionService.getName()
+
+      console.log('✅ Extraction API: Extraction completed successfully')
+      console.log('💰 Extraction API: Cost:', extractionCost)
+      console.log('📋 Extraction API: Service used:', extractionMethod)
+      
+      // Log router-specific information
+      if ('fallback_occurred' in extractionResult) {
+        console.log('🔄 Extraction API: Fallback occurred:', extractionResult.fallback_occurred)
+        console.log('🔄 Extraction API: Services used:', extractionResult.services_used)
+      }
+
+      // Update document with extraction results
+      const { data: updatedDocument, error: updateError } = await supabase
+        .from('documents')
+        .update({
+          status: 'completed',
+          extracted_data: extractionResult,
+          extraction_method: extractionMethod,
+          extraction_cost: extractionCost,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', documentId)
+        .eq('user_id', user.id)
+        .select()
+        .single()
+
+      if (updateError) {
+        console.error('❌ Extraction API: Failed to update document:', updateError)
+        // Still return success since extraction worked
+        return NextResponse.json({
+          success: true,
+          message: 'Extraction completed successfully (database update failed)',
+          extraction: {
+            data: extractionResult,
+            method: extractionMethod,
+            cost: extractionCost
+          },
+          dbError: updateError.message
+        })
+      }
+
+      return NextResponse.json({
+        success: true,
+        message: 'Document extraction completed successfully',
+        extraction: {
+          data: extractionResult,
+          method: extractionMethod,
+          cost: extractionCost
+        },
+        document: updatedDocument
+      })
+
+    } catch (extractionError) {
+      console.error('❌ Extraction API: Extraction failed:', extractionError)
+      
+      // Update document status to failed
+      await supabase
+        .from('documents')
+        .update({
+          status: 'failed',
+          error_message: extractionError instanceof Error ? extractionError.message : 'Unknown error',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', documentId)
+        .eq('user_id', user.id)
+
+      // Return structured error response
+      if (extractionError instanceof ExtractionError) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'Extraction failed',
+            details: extractionError.message,
+            type: extractionError.type
+          },
+          { status: 422 }
+        )
+      }
+
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Extraction failed',
+          details: extractionError instanceof Error ? extractionError.message : 'Unknown error'
+        },
+        { status: 500 }
+      )
+    }
+
+  } catch (error) {
+    console.error('💥 Extraction API: Unexpected error:', error)
+    return NextResponse.json(
+      { 
+        success: false,
+        error: 'Internal server error', 
+        details: error instanceof Error ? error.message : 'Unknown error'
+      },
+      { status: 500 }
+    )
+  }
+}
