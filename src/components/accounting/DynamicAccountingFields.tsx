@@ -90,6 +90,7 @@ const FIELD_GROUPS = {
   costAllocation: {
     title: "Cost Allocation",
     description: "Cost center and allocation information",
+    required: false,
     fields: [
       { key: 'cost_center', label: 'Cost Center' },
       { key: 'profit_center', label: 'Profit Center' },
@@ -130,7 +131,7 @@ export function DynamicAccountingFields({
           title={group.title}
           description={group.description}
           confidence={calculateGroupConfidence(group.fields)}
-          required={group.required || false}
+          required={group.required}
         >
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {group.fields.map((field) => {
