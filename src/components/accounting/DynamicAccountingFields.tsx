@@ -12,8 +12,25 @@ interface DynamicAccountingFieldsProps {
   updateFieldMutation: any
 }
 
+// Field type definition
+interface FieldDefinition {
+  key: string
+  label: string
+  required?: boolean
+  component?: 'company-selector' | 'gl-selector'
+  type?: 'date' | 'select' | 'number' | 'textarea'
+  options?: Array<{ value: string; label: string }>
+}
+
+interface FieldGroup {
+  title: string
+  description: string
+  required?: boolean
+  fields: FieldDefinition[]
+}
+
 // Field definitions with metadata
-const FIELD_GROUPS = {
+const FIELD_GROUPS: Record<string, FieldGroup> = {
   company: {
     title: "Company & Invoice Information",
     description: "Basic company and invoice identification",
