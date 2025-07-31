@@ -130,7 +130,7 @@ export function DynamicAccountingFields({
           title={group.title}
           description={group.description}
           confidence={calculateGroupConfidence(group.fields)}
-          required={group.required}
+          required={group.required || false}
         >
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {group.fields.map((field) => {
