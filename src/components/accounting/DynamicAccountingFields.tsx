@@ -18,7 +18,7 @@ interface FieldDefinition {
   label: string
   required?: boolean
   component?: 'company-selector' | 'gl-selector'
-  type?: 'date' | 'select' | 'number' | 'textarea'
+  type?: 'text' | 'number' | 'date' | 'select' | 'textarea'
   options?: Array<{ value: string; label: string }>
 }
 
