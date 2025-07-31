@@ -183,7 +183,6 @@ export function DynamicAccountingFields({
                     <GLAccountSelector
                       value={value || ''}
                       onChange={(newValue) => updateAccountingField(field.key, newValue)}
-                      supplierId={documentData.vendor_id}
                     />
                   </div>
                 )
