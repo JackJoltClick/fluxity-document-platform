@@ -13,12 +13,9 @@ import { ErrorState } from '@/src/components/design-system/feedback/ErrorState'
 import { ProcessingProgress } from '@/src/components/design-system/feedback/ProcessingProgress'
 
 // Accounting Components
-import { AccountingFieldGroup } from '@/src/components/accounting/AccountingFieldGroup'
-import { AccountingField } from '@/src/components/accounting/AccountingField'
 import { AccountingStatusBadge } from '@/src/components/accounting/AccountingStatusBadge'
 import { ConfidenceIndicator } from '@/src/components/accounting/ConfidenceIndicator'
-import { CompanyCodeSelector } from '@/src/components/accounting/CompanyCodeSelector'
-import { GLAccountSelector } from '@/src/components/accounting/GLAccountSelector'
+import { DynamicAccountingFields } from '@/src/components/accounting/DynamicAccountingFields'
 import { JustificationReport } from '@/src/components/JustificationReport'
 
 import { 
@@ -41,6 +38,14 @@ function DocumentDetailsContent() {
   const reprocessMutation = useReprocessDocument()
   const retryMutation = useRetryDocument()
 
+  // Get accounting fields from extracted data
+  const accountingFields = document?.extracted_data?.accounting_fields || {}
+  
+  // Helper to get field value and confidence
+  const getFieldData = (fieldName: string) => {
+    return accountingFields[fieldName] || { value: null, confidence: 0 }
+  }
+  
   // Update accounting field using React Query
   const updateAccountingField = async (fieldKey: string, newValue: string | number | boolean) => {
     try {
@@ -466,287 +471,13 @@ function DocumentDetailsContent() {
           </div>
 
           {/* Accounting Fields - Right 60% */}
-          <div className="lg:col-span-3 space-y-6">
-            {/* Company & Invoice Information */}
-            <AccountingFieldGroup 
-              title="Company & Invoice Information"
-              description="Basic company and invoice identification"
-              confidence={0.8}
-              required
-            >
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Company Code *
-                  </label>
-                  <CompanyCodeSelector
-                    value={document.company_code ?? ''}
-                    onChange={(value) => updateAccountingField('company_code', value)}
-                  />
-                </div>
-                
-                <AccountingField
-                  label="Invoicing Party"
-                  value={document.invoicing_party ?? null}
-                  confidence={getFieldConfidence('supplier_name')}
-                  fieldKey="invoicing_party"
-                  onEdit={updateAccountingField}
-                  isLoading={updateFieldMutation.isPending && updateFieldMutation.variables?.fieldKey === 'invoicing_party'}
-                />
-                
-                <AccountingField
-                  label="Supplier Invoice ID"
-                  value={document.supplier_invoice_id_by_invcg_party ?? null}
-                  confidence={getFieldConfidence('invoice_number')}
-                  fieldKey="supplier_invoice_id_by_invcg_party"
-                  onEdit={updateAccountingField}
-                  isLoading={updateFieldMutation.isPending && updateFieldMutation.variables?.fieldKey === 'supplier_invoice_id_by_invcg_party'}
-                />
-                
-                <AccountingField
-                  label="Transaction Type"
-                  value={document.supplier_invoice_transaction_type ?? null}
-                  confidence={0.9}
-                  fieldKey="supplier_invoice_transaction_type"
-                  type="select"
-                  options={[
-                    { value: 'INVOICE', label: 'Invoice' },
-                    { value: 'CREDIT', label: 'Credit Note' },
-                    { value: 'FREIGHT', label: 'Freight' },
-                    { value: 'MISC', label: 'Miscellaneous' }
-                  ]}
-                  onEdit={updateAccountingField}
-                  isLoading={updateFieldMutation.isPending && updateFieldMutation.variables?.fieldKey === 'supplier_invoice_transaction_type'}
-                />
-              </div>
-            </AccountingFieldGroup>
-
-            {/* Document & Dates */}
-            <AccountingFieldGroup 
-              title="Document & Dates"
-              description="Document metadata and important dates"
-              confidence={0.7}
-              required
-            >
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <AccountingField
-                  label="Document Date"
-                  value={document.document_date ?? null}
-                  confidence={getFieldConfidence('invoice_date')}
-                  fieldKey="document_date"
-                  type="date"
-                  onEdit={updateAccountingField}
-                  isLoading={updateFieldMutation.isPending && updateFieldMutation.variables?.fieldKey === 'document_date'}
-                  required
-                />
-                
-                <AccountingField
-                  label="Posting Date"
-                  value={document.posting_date ?? null}
-                  confidence={0.8}
-                  fieldKey="posting_date"
-                  type="date"
-                  onEdit={updateAccountingField}
-                  isLoading={updateFieldMutation.isPending && updateFieldMutation.variables?.fieldKey === 'posting_date'}
-                />
-                
-                <AccountingField
-                  label="Document Type"
-                  value={document.accounting_document_type ?? null}
-                  confidence={0.9}
-                  fieldKey="accounting_document_type"
-                  type="select"
-                  options={[
-                    { value: 'RE', label: 'RE - Vendor Invoice' },
-                    { value: 'KR', label: 'KR - Vendor Credit' },
-                    { value: 'KG', label: 'KG - Vendor Payment' }
-                  ]}
-                  onEdit={updateAccountingField}
-                  isLoading={updateFieldMutation.isPending && updateFieldMutation.variables?.fieldKey === 'accounting_document_type'}
-                />
-                
-                <AccountingField
-                  label="Document Header Text"
-                  value={document.accounting_document_header_text ?? null}
-                  confidence={0.6}
-                  fieldKey="accounting_document_header_text"
-                  onEdit={updateAccountingField}
-                  isLoading={updateFieldMutation.isPending && updateFieldMutation.variables?.fieldKey === 'accounting_document_header_text'}
-                />
-                
-                <AccountingField
-                  label="Currency"
-                  value={document.document_currency ?? null}
-                  confidence={getFieldConfidence('currency') || 0.8}
-                  fieldKey="document_currency"
-                  type="select"
-                  options={[
-                    { value: 'USD', label: 'USD - US Dollar' },
-                    { value: 'EUR', label: 'EUR - Euro' },
-                    { value: 'GBP', label: 'GBP - British Pound' },
-                    { value: 'CAD', label: 'CAD - Canadian Dollar' }
-                  ]}
-                  onEdit={updateAccountingField}
-                  isLoading={updateFieldMutation.isPending && updateFieldMutation.variables?.fieldKey === 'document_currency'}
-                />
-              </div>
-            </AccountingFieldGroup>
-
-            {/* Financial Details */}
-            <AccountingFieldGroup 
-              title="Financial Details"
-              description="Invoice amounts and financial information"
-              confidence={0.85}
-              required
-            >
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <AccountingField
-                  label="Invoice Gross Amount"
-                  value={document.invoice_gross_amount ?? null}
-                  confidence={getFieldConfidence('total_amount')}
-                  fieldKey="invoice_gross_amount"
-                  type="number"
-                  onEdit={updateAccountingField}
-                  isLoading={updateFieldMutation.isPending && updateFieldMutation.variables?.fieldKey === 'invoice_gross_amount'}
-                  required
-                />
-                
-                <AccountingField
-                  label="Supplier Invoice Item Amount"
-                  value={document.supplier_invoice_item_amount ?? null}
-                  confidence={getFieldConfidence('total_amount')}
-                  fieldKey="supplier_invoice_item_amount"
-                  type="number"
-                  onEdit={updateAccountingField}
-                  isLoading={updateFieldMutation.isPending && updateFieldMutation.variables?.fieldKey === 'supplier_invoice_item_amount'}
-                />
-                
-                <div className="md:col-span-2">
-                  <AccountingField
-                    label="Supplier Invoice Item Text"
-                    value={document.supplier_invoice_item_text ?? null}
-                    confidence={getFieldConfidence('line_items')}
-                    fieldKey="supplier_invoice_item_text"
-                    type="textarea"
-                    onEdit={updateAccountingField}
-                    isLoading={updateFieldMutation.isPending && updateFieldMutation.variables?.fieldKey === 'supplier_invoice_item_text'}
-                  />
-                </div>
-                
-                <AccountingField
-                  label="Debit/Credit Code"
-                  value={document.debit_credit_code ?? null}
-                  confidence={0.9}
-                  fieldKey="debit_credit_code"
-                  type="select"
-                  options={[
-                    { value: 'D', label: 'D - Debit' },
-                    { value: 'C', label: 'C - Credit' }
-                  ]}
-                  onEdit={updateAccountingField}
-                  isLoading={updateFieldMutation.isPending && updateFieldMutation.variables?.fieldKey === 'debit_credit_code'}
-                />
-              </div>
-            </AccountingFieldGroup>
-
-            {/* GL & Tax Classification */}
-            <AccountingFieldGroup 
-              title="GL & Tax Classification"
-              description="General ledger and tax information"
-              confidence={0.75}
-              required
-            >
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    GL Account *
-                  </label>
-                  <GLAccountSelector
-                    value={document.gl_account ?? ''}
-                    onChange={(value) => updateAccountingField('gl_account', value)}
-                  />
-                </div>
-                
-                <AccountingField
-                  label="Tax Code"
-                  value={document.tax_code ?? null}
-                  confidence={0.6}
-                  fieldKey="tax_code"
-                  type="select"
-                  options={[
-                    { value: 'V0', label: 'V0 - Tax Free' },
-                    { value: 'V1', label: 'V1 - Standard Tax' },
-                    { value: 'V2', label: 'V2 - Reduced Tax' },
-                    { value: 'V3', label: 'V3 - Zero Tax' }
-                  ]}
-                  onEdit={updateAccountingField}
-                  isLoading={updateFieldMutation.isPending && updateFieldMutation.variables?.fieldKey === 'tax_code'}
-                />
-                
-                <AccountingField
-                  label="Tax Jurisdiction"
-                  value={document.tax_jurisdiction ?? null}
-                  confidence={0.5}
-                  fieldKey="tax_jurisdiction"
-                  onEdit={updateAccountingField}
-                  isLoading={updateFieldMutation.isPending && updateFieldMutation.variables?.fieldKey === 'tax_jurisdiction'}
-                />
-              </div>
-            </AccountingFieldGroup>
-
-            {/* Cost Allocation */}
-            <AccountingFieldGroup 
-              title="Cost Allocation"
-              description="Cost center and allocation information"
-              confidence={0.6}
-            >
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <AccountingField
-                  label="Cost Center"
-                  value={document.cost_center ?? null}
-                  confidence={0.7}
-                  fieldKey="cost_center"
-                  onEdit={updateAccountingField}
-                  isLoading={updateFieldMutation.isPending && updateFieldMutation.variables?.fieldKey === 'cost_center'}
-                />
-                
-                <AccountingField
-                  label="Profit Center"
-                  value={document.profit_center ?? null}
-                  confidence={0.5}
-                  fieldKey="profit_center"
-                  onEdit={updateAccountingField}
-                  isLoading={updateFieldMutation.isPending && updateFieldMutation.variables?.fieldKey === 'profit_center'}
-                />
-                
-                <AccountingField
-                  label="Assignment Reference"
-                  value={document.assignment_reference ?? null}
-                  confidence={0.4}
-                  fieldKey="assignment_reference"
-                  onEdit={updateAccountingField}
-                  isLoading={updateFieldMutation.isPending && updateFieldMutation.variables?.fieldKey === 'assignment_reference'}
-                />
-                
-                <AccountingField
-                  label="Internal Order"
-                  value={document.internal_order ?? null}
-                  confidence={0.3}
-                  fieldKey="internal_order"
-                  onEdit={updateAccountingField}
-                  isLoading={updateFieldMutation.isPending && updateFieldMutation.variables?.fieldKey === 'internal_order'}
-                />
-                
-                <AccountingField
-                  label="WBS Element"
-                  value={document.wbs_element ?? null}
-                  confidence={0.3}
-                  fieldKey="wbs_element"
-                  onEdit={updateAccountingField}
-                  isLoading={updateFieldMutation.isPending && updateFieldMutation.variables?.fieldKey === 'wbs_element'}
-                />
-              </div>
-            </AccountingFieldGroup>
+          <div className="lg:col-span-3">
+            <DynamicAccountingFields
+              accountingFields={accountingFields}
+              documentData={document}
+              updateAccountingField={updateAccountingField}
+              updateFieldMutation={updateFieldMutation}
+            />
           </div>
         </div>
       )}

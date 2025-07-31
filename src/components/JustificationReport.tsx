@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { ChevronDownIcon, ChevronRightIcon, DocumentMagnifyingGlassIcon } from '@heroicons/react/24/outline'
 
 interface JustificationReportProps {
-  report?: string
+  report?: string | any // Can be string or parsed JSON
   documentMetadata?: any
   validationFlags?: any
   className?: string
@@ -22,8 +22,27 @@ export function JustificationReport({
     return null
   }
 
-  // Parse markdown-like content to basic formatting
-  const formatReport = (content: string) => {
+  // Parse markdown-like content to basic formatting or handle JSON
+  const formatReport = (content: string | any) => {
+    // If it's a string that looks like JSON, try to parse it
+    if (typeof content === 'string' && content.trim().startsWith('{')) {
+      try {
+        const parsed = JSON.parse(content)
+        // Format the JSON into readable text
+        return formatJSONReport(parsed)
+      } catch (e) {
+        // Not valid JSON, treat as markdown
+      }
+    }
+    
+    // If it's already an object, format it
+    if (typeof content === 'object' && content !== null) {
+      return formatJSONReport(content)
+    }
+    
+    // Otherwise treat as markdown string
+    if (typeof content !== 'string') return ''
+    
     return content
       // Convert markdown headers to HTML-like structure
       .replace(/### (.*?)(\n|$)/g, '<h4 class="font-semibold text-gray-900 mt-4 mb-2">$1</h4>')
@@ -34,6 +53,43 @@ export function JustificationReport({
       .replace(/^- (.*?)$/gm, '<li class="ml-4">• $1</li>')
       // Convert line breaks
       .replace(/\n/g, '<br />')
+  }
+  
+  // Format JSON justification report
+  const formatJSONReport = (data: any): string => {
+    let html = ''
+    
+    // Handle nested justification structure
+    const justifications = data.justification_report || data['Field Extraction Justifications'] || data
+    
+    if (typeof justifications === 'object') {
+      Object.entries(justifications).forEach(([key, value]: [string, any]) => {
+        if (typeof value === 'object' && value !== null) {
+          // Format field name
+          const fieldName = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
+          html += `<div class="mb-4 p-3 bg-gray-50 rounded-md">
+            <h5 class="font-medium text-gray-900 mb-2">${fieldName}</h5>`
+          
+          // Format field details
+          Object.entries(value).forEach(([prop, val]) => {
+            if (prop !== 'Business Notes' && val !== null && val !== undefined) {
+              html += `<div class="text-sm mb-1">
+                <span class="text-gray-600">${prop}:</span> 
+                <span class="text-gray-900">${val}</span>
+              </div>`
+            }
+          })
+          
+          if (value['Business Notes']) {
+            html += `<div class="text-sm mt-2 text-gray-600 italic">${value['Business Notes']}</div>`
+          }
+          
+          html += '</div>'
+        }
+      })
+    }
+    
+    return html || '<p class="text-gray-500">No extraction details available</p>'
   }
 
   const overallConfidence = documentMetadata?.overall_confidence || 0
