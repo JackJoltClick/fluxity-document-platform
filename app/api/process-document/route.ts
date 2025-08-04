@@ -3,6 +3,7 @@ import { supabaseAdmin } from '@/src/lib/supabase/auth-server'
 import { ExtractionRouterService } from '@/src/services/extraction/extraction-router.service'
 import { BusinessLogicService } from '@/src/services/accounting/business-logic.service'
 import { AccountingMappingResult } from '@/src/types/accounting.types'
+import { SQSService } from '@/src/services/queue/sqs.service'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 300 // 5 minutes timeout
@@ -43,6 +44,36 @@ export async function POST(request: NextRequest) {
       })
     }
 
+    // Check if SQS is enabled
+    const sqsService = new SQSService()
+    const useSQS = await sqsService.isEnabled()
+
+    if (useSQS) {
+      try {
+        console.log(`📤 API: Using SQS - Queuing document ${documentId} for processing`)
+        
+        // Update status to queued
+        await updateDocumentStatus(documentId, 'queued')
+        
+        // Send to SQS queue
+        await sqsService.sendDocumentForProcessing(documentId, document.user_id)
+        
+        return NextResponse.json({
+          success: true,
+          message: 'Document queued for processing',
+          document: { ...document, status: 'queued' },
+          method: 'sqs'
+        })
+        
+      } catch (sqsError) {
+        console.error(`❌ API: SQS queueing failed for ${documentId}:`, sqsError)
+        // Fall back to direct processing
+        console.log(`🔄 API: Falling back to direct processing for ${documentId}`)
+      }
+    }
+
+    // Direct processing (original code)
+    console.log(`🔄 API: Using direct processing for document ${documentId}`)
     const startTime = Date.now()
 
     try {
@@ -87,7 +118,8 @@ export async function POST(request: NextRequest) {
         success: true,
         message: 'Document processed successfully',
         document: updatedDocument,
-        processingTime
+        processingTime,
+        method: 'direct'
       })
 
     } catch (error) {
