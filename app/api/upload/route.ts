@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { createClient } from '@supabase/supabase-js'
 import { createServerClient } from '@supabase/ssr'
-import { documentQueue } from '@/src/lib/queue/queues'
 
 export const dynamic = 'force-dynamic'
 

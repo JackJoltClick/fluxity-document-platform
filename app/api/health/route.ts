@@ -103,16 +103,21 @@ export async function GET() {
       routerStatus = 'error'
     }
 
-    // Test Queue and Redis connectivity
-    let queueStatus = { redis: 'disconnected', worker: 'inactive' }
+    // Test SQS connectivity
+    let queueStatus = { sqs: 'disconnected', enabled: false }
     try {
-      const { checkQueueHealth } = await import('@/src/lib/queue/queues')
-      queueStatus = await checkQueueHealth()
-    } catch (queueError) {
-      console.log('Queue health check failed:', queueError)
+      const { SQSService } = await import('@/src/services/queue/sqs.service')
+      const sqsService = new SQSService()
+      const isEnabled = await sqsService.isEnabled()
       queueStatus = { 
-        redis: 'error', 
-        worker: 'inactive'
+        sqs: isEnabled ? 'connected' : 'disabled',
+        enabled: isEnabled
+      }
+    } catch (queueError) {
+      console.log('SQS health check failed:', queueError)
+      queueStatus = { 
+        sqs: 'error', 
+        enabled: false
       }
     }
 

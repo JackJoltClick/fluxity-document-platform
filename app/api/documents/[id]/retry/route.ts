@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
-import { documentQueue } from '@/src/lib/queue/queues'
+import { SQSService } from '@/src/services/queue/sqs.service'
 
 export const dynamic = 'force-dynamic'
 
@@ -85,25 +85,16 @@ export async function POST(
       )
     }
 
-    // Add document back to the processing queue
+    // Add document back to the SQS processing queue
     try {
-      if (documentQueue) {
-        const job = await documentQueue.add('document-processing', {
-          documentId: document.id,
-          userId: user.id,
-          fileUrl: document.file_url,
-          filename: document.filename
-        }, {
-          attempts: 3,
-          backoff: {
-            type: 'exponential',
-            delay: 2000,
-          },
-        })
-
-        console.log(`✅ RETRY: Document ${documentId} added to queue with job ID: ${job.id}`)
+      const sqsService = new SQSService()
+      const useSQS = await sqsService.isEnabled()
+      
+      if (useSQS) {
+        await sqsService.sendDocumentForProcessing(document.id, user.id)
+        console.log(`✅ RETRY: Document ${documentId} added to SQS queue`)
       } else {
-        console.log('Queue not available - document status updated to pending')
+        console.log('SQS not available - document status updated to pending')
       }
 
       // Fetch the updated document to return
@@ -117,7 +108,7 @@ export async function POST(
         success: true,
         message: 'Document retry initiated successfully',
         document: updatedDocument,
-        jobId: documentQueue ? 'job.id' : null
+        jobId: null
       })
 
     } catch (queueError) {

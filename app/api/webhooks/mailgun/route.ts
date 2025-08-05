@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import crypto from 'crypto'
 import { supabaseAdmin } from '@/src/lib/supabase/auth-server'
-import { documentQueue } from '@/src/lib/queue/queues'
+import { SQSService } from '@/src/services/queue/sqs.service'
 import { MailgunWebhookData, MailgunAttachment, EmailMetadata } from '@/src/types/email.types'
 
 // Token cache for replay attack prevention
@@ -397,23 +397,20 @@ export async function POST(req: NextRequest) {
           continue
         }
         
-        // Add to processing queue with retry logic
+        // Add to SQS processing queue
         try {
-          if (documentQueue) {
-            await documentQueue.add('document-processing-job', {
-              documentId,
-              userId,
-              filename: attachment.filename,
-              fileUrl: uploadResult.url
-            })
-            
+          const sqsService = new SQSService()
+          const useSQS = await sqsService.isEnabled()
+          
+          if (useSQS) {
+            await sqsService.sendDocumentForProcessing(documentId, userId)
             processedDocuments.push(documentId)
             
             if (process.env.NODE_ENV === 'development') {
-              console.log(`Document ${documentId} queued for processing`)
+              console.log(`Document ${documentId} queued for SQS processing`)
             }
           } else {
-            console.log('Queue not available - marking document as uploaded')
+            console.log('SQS not available - marking document as uploaded')
             processedDocuments.push(documentId)
           }
         } catch (queueError) {
