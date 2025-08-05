@@ -46,7 +46,7 @@ export function useDocuments() {
       // Poll every 3 seconds if there are pending or processing documents
       const documents = (data as any)?.documents || []
       const hasActiveDocs = documents.some((doc: any) => 
-        doc.status === 'pending' || doc.status === 'processing'
+        doc.status === 'pending' || doc.status === 'processing' || doc.status === 'queued'
       )
       return hasActiveDocs ? 3000 : false // 3 seconds if active, no polling if all completed
     },

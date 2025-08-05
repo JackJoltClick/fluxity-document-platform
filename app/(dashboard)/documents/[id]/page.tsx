@@ -265,10 +265,11 @@ function DocumentDetailsContent() {
       <SimpleMappingWarning context="accounting" dismissible={true} />
 
       {/* Processing Progress */}
-      {(document.status === 'pending' || document.status === 'processing') && (
+      {(document.status === 'pending' || document.status === 'processing' || document.status === 'queued') && (
         <ProcessingProgress
-          status={document.status as 'pending' | 'processing'}
-          progress={document.status === 'pending' ? 5 : 50}
+          status={document.status === 'queued' ? 'processing' : document.status as 'pending' | 'processing'}
+          progress={document.status === 'pending' ? 5 : document.status === 'queued' ? 25 : 50}
+          infoText={document.status === 'queued' ? 'Document queued for Lambda processing' : undefined}
         />
       )}
 

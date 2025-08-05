@@ -17,7 +17,7 @@ export interface DocumentCardProps extends React.HTMLAttributes<HTMLDivElement> 
     filename: string
     source?: 'email' | 'upload'
     created_at: string
-    status: 'processed' | 'pending' | 'processing' | 'error' | 'completed' | 'failed' | 'uploaded'
+    status: 'processed' | 'pending' | 'processing' | 'error' | 'completed' | 'failed' | 'uploaded' | 'queued'
     extraction_cost?: number
     extraction_method?: string
     email_metadata?: {

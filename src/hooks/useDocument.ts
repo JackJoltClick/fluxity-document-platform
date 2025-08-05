@@ -86,7 +86,7 @@ export function useDocument(documentId: string) {
     refetchInterval: (query) => {
       // Poll every 3 seconds if document is processing
       const data = query.state.data
-      return data?.status === 'pending' || data?.status === 'processing' ? 3000 : false
+      return data?.status === 'pending' || data?.status === 'processing' || data?.status === 'queued' ? 3000 : false
     },
     staleTime: 0, // Always consider data stale for real-time updates
   })

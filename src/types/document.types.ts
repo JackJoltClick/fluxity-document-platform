@@ -4,9 +4,10 @@ export interface DocumentStatus {
   COMPLETED: 'completed'
   FAILED: 'failed'
   UPLOADED: 'uploaded' // Legacy status
+  QUEUED: 'queued'
 }
 
-export type DocumentStatusType = 'pending' | 'processing' | 'completed' | 'failed' | 'uploaded'
+export type DocumentStatusType = 'pending' | 'processing' | 'completed' | 'failed' | 'uploaded' | 'queued'
 
 export interface ExtractedData {
   supplier_name?: {

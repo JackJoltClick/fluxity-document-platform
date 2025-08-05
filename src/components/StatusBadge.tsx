@@ -41,6 +41,13 @@ const statusConfig = {
     textColor: 'text-gray-700',
     borderColor: 'border-gray-200',
     icon: '📄'
+  },
+  queued: {
+    label: 'Queued',
+    bgColor: 'bg-indigo-50',
+    textColor: 'text-indigo-700',
+    borderColor: 'border-indigo-200',
+    icon: '📬'
   }
 }
 
