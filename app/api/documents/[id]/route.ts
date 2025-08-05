@@ -19,6 +19,15 @@ export async function GET(
       )
     }
 
+    // Validate document ID format (UUID) - prevents enumeration attacks
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[4][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+    if (!uuidRegex.test(documentId)) {
+      return NextResponse.json(
+        { success: false, error: 'Invalid document ID format' },
+        { status: 400 }
+      )
+    }
+
     // Create Supabase client with cookies for authentication
     const cookieStore = cookies()
     const supabase = createServerClient(

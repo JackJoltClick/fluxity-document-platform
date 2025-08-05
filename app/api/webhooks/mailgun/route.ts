@@ -319,9 +319,19 @@ export async function POST(req: NextRequest) {
       console.log('✅ Mailgun webhook verified')
     }
     
+    // Validate recipient email exists
+    const recipient = fields.recipient || fields.To
+    if (!recipient) {
+      return NextResponse.json(
+        { error: 'No recipient email found' },
+        { status: 400 }
+      )
+    }
+    
     // Extract email metadata
     const emailMetadata: EmailMetadata = {
       sender: fields.from || fields.sender,
+      recipient: recipient,
       subject: fields.subject || 'No Subject',
       messageId: fields['Message-Id'],
       receivedDate: new Date().toISOString(),
@@ -331,19 +341,22 @@ export async function POST(req: NextRequest) {
     if (process.env.NODE_ENV === 'development') {
       console.log('Email metadata:', {
         sender: emailMetadata.sender,
+        recipient: emailMetadata.recipient,
         subject: emailMetadata.subject,
         attachments: files.length
       })
     }
     
-    // Find user by sender email
-    const userId = await findUserByEmail(emailMetadata.sender)
+    // Find user by RECIPIENT email (client routing)
+    // This routes documents based on WHERE they were sent (client1@fluxity.ai)
+    // rather than WHO sent them (security: controlled by email_aliases table)
+    const userId = await findUserByEmail(emailMetadata.recipient)
     if (!userId) {
       if (process.env.NODE_ENV === 'development') {
-        console.error('No user found for email:', emailMetadata.sender)
+        console.error('No user found for recipient email:', emailMetadata.recipient)
       }
       return NextResponse.json(
-        { error: 'Email address not registered' },
+        { error: 'Recipient email not registered' }, 
         { status: 404 }
       )
     }

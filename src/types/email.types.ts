@@ -45,6 +45,7 @@ export interface EmailProcessingResult {
 
 export interface EmailMetadata {
   sender: string
+  recipient: string
   subject: string
   messageId: string
   receivedDate: string
