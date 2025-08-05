@@ -241,8 +241,26 @@ export async function POST(request: NextRequest) {
 
       console.log('✅ Upload API: Document record created successfully:', documentRecord.id)
 
-      // Document uploaded - external Railway worker will process automatically
-      console.log('📤 Upload API: Document uploaded, external worker will process')
+      // Send to process-document endpoint which will queue in SQS
+      console.log('📤 Upload API: Sending document to processing queue')
+      
+      try {
+        const processResponse = await fetch(`${request.nextUrl.origin}/api/process-document`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ documentId: documentRecord.id })
+        })
+        
+        if (!processResponse.ok) {
+          console.error('❌ Upload API: Failed to queue document for processing')
+        } else {
+          console.log('✅ Upload API: Document queued for processing')
+        }
+      } catch (processError) {
+        console.error('❌ Upload API: Error queuing document:', processError)
+      }
 
       const metadata = {
         id: documentRecord.id,
@@ -255,14 +273,14 @@ export async function POST(request: NextRequest) {
         url: urlData.publicUrl,
         uploadedAt: new Date().toISOString(),
         dbId: documentRecord.id,
-        status: 'pending' // External worker picks up pending documents
+        status: documentRecord.status // Will be 'queued' if SQS is enabled
       }
 
       console.log('📋 Upload API: Upload complete with metadata:', metadata)
 
       return NextResponse.json({
         success: true,
-        message: 'File uploaded successfully - external worker will process',
+        message: 'File uploaded and queued for processing',
         file: metadata
       })
       
