@@ -55,8 +55,13 @@ export async function POST(request: NextRequest) {
         // Update status to queued
         await updateDocumentStatus(documentId, 'queued')
         
-        // Send to SQS queue
-        await sqsService.sendDocumentForProcessing(documentId, document.user_id)
+        // Send to SQS queue with all required data
+        await sqsService.sendDocumentForProcessing(
+          documentId, 
+          document.user_id,
+          document.file_url,
+          document.filename
+        )
         
         return NextResponse.json({
           success: true,

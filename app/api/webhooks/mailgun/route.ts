@@ -403,7 +403,12 @@ export async function POST(req: NextRequest) {
           const useSQS = await sqsService.isEnabled()
           
           if (useSQS) {
-            await sqsService.sendDocumentForProcessing(documentId, userId)
+            await sqsService.sendDocumentForProcessing(
+              documentId, 
+              userId,
+              uploadResult.url,
+              uploadResult.filename
+            )
             processedDocuments.push(documentId)
             
             if (process.env.NODE_ENV === 'development') {

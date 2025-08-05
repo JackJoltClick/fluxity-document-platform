@@ -91,7 +91,12 @@ export async function POST(
       const useSQS = await sqsService.isEnabled()
       
       if (useSQS) {
-        await sqsService.sendDocumentForProcessing(document.id, user.id)
+        await sqsService.sendDocumentForProcessing(
+          document.id, 
+          user.id,
+          document.file_url,
+          document.filename
+        )
         console.log(`✅ RETRY: Document ${documentId} added to SQS queue`)
       } else {
         console.log('SQS not available - document status updated to pending')

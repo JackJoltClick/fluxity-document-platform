@@ -4,6 +4,8 @@ export interface DocumentProcessingMessage {
   documentId: string
   action: 'process'
   userId: string
+  fileUrl: string
+  filename: string
 }
 
 export class SQSService {
@@ -26,11 +28,13 @@ export class SQSService {
     }
   }
 
-  async sendDocumentForProcessing(documentId: string, userId: string): Promise<void> {
+  async sendDocumentForProcessing(documentId: string, userId: string, fileUrl: string, filename: string): Promise<void> {
     const message: DocumentProcessingMessage = {
       documentId,
       action: 'process',
-      userId
+      userId,
+      fileUrl,
+      filename
     }
 
     const command = new SendMessageCommand({
