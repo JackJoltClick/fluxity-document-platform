@@ -1,36 +1,56 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Fluxity Document Platform
 
-## Getting Started
+AI-powered document processing platform with multi-client email routing and serverless architecture.
 
-First, run the development server:
+## Features
+
+- 🤖 **AI Document Extraction** - OpenAI-powered PDF and image processing
+- 📧 **Multi-Client Email Routing** - client1@fluxity.ai → Client 1's dashboard  
+- ☁️ **Serverless Architecture** - AWS Lambda + SQS processing
+- 🔒 **Enterprise Security** - HMAC verification, rate limiting, access controls
+- 📊 **Accounting Integration** - Field mapping and confidence scoring
+
+## Quick Start
 
 ```bash
+# Install dependencies
+npm install
+
+# Set up environment variables
+cp .env.example .env.local
+# Edit .env.local with your keys
+
+# Run development server
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000) to view the application.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Documentation
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Detailed documentation is available in the [`docs/`](./docs/) folder:
 
-## Learn More
+- **[Deployment Guide](./docs/DEPLOYMENT.md)** - Production deployment steps
+- **[Development Workflow](./docs/DEVELOPMENT_WORKFLOW.md)** - Development setup and workflow
+- **[Step-by-Step Deployment](./docs/STEP_BY_STEP_DEPLOYMENT.md)** - Detailed deployment instructions
+- **[Mailgun Security](./docs/mailgun-webhook-security-summary.md)** - Webhook security implementation
+- **[Stage Completion Summaries](./docs/)** - Feature implementation summaries
 
-To learn more about Next.js, take a look at the following resources:
+## Architecture
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- **Frontend**: Next.js 14 with TypeScript
+- **Database**: Supabase (PostgreSQL)
+- **Authentication**: Supabase Auth with RLS
+- **File Storage**: Supabase Storage
+- **Processing**: AWS Lambda + SQS
+- **AI**: OpenAI GPT-4o (Assistants API + Vision API)
+- **Email**: Mailgun webhooks with HMAC verification
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Security Features
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- HMAC webhook verification
+- Rate limiting and DDoS protection  
+- UUID validation (prevents enumeration)
+- File URL validation (prevents SSRF)
+- Row Level Security (RLS)
+- Environment variable validation
