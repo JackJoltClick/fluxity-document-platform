@@ -50,6 +50,7 @@ export interface EmailMetadata {
   messageId: string
   receivedDate: string
   originalFilename?: string
+  storedFilename?: string
 }
 
 export interface EmailIngestionConfig {
