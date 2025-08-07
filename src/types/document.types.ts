@@ -85,6 +85,40 @@ export interface EmailMetadata {
   original_filename?: string
 }
 
+// Hybrid extraction interfaces
+export interface TextractData {
+  keyValuePairs: Record<string, string>
+  tables: Array<{
+    rows: string[][]
+    confidence: number
+  }>
+  lineItems: Array<{
+    description: string
+    quantity?: string
+    unitPrice?: string
+    amount?: string
+    confidence: number
+  }>
+}
+
+export interface CrossValidationData {
+  agreementScore: number
+  conflictingFields: string[]
+  validatedFields: Record<string, {
+    textractValue: any
+    openaiValue: any
+    finalValue: any
+    confidence: number
+    source: 'textract' | 'openai' | 'consensus'
+  }>
+}
+
+export interface ExtractionCosts {
+  textract?: number
+  openai?: number
+  total?: number
+}
+
 export interface Document {
   id: string
   user_id: string
@@ -99,6 +133,15 @@ export interface Document {
   created_at: string
   updated_at: string
   error_message?: string | null
+  
+  // Hybrid extraction fields
+  extraction_confidence?: number | null
+  textract_confidence?: number | null
+  openai_confidence?: number | null
+  cross_validation_score?: number | null
+  textract_data?: TextractData | null
+  cross_validation_data?: CrossValidationData | null
+  extraction_costs?: ExtractionCosts | null
   
   // Accounting fields (optional for backward compatibility)
   company_code?: string | null

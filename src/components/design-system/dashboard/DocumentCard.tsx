@@ -3,8 +3,9 @@ import Link from 'next/link'
 import { cn } from '@/src/lib/utils'
 import { StatusIndicator } from '../feedback/StatusIndicator'
 import { AccountingStatusBadge } from '@/src/components/accounting/AccountingStatusBadge'
-import { ConfidenceIndicator } from '@/src/components/accounting/ConfidenceIndicator'
-import { CheckCircleIcon } from '@heroicons/react/24/outline'
+import { ConfidenceIndicator as AccountingConfidenceIndicator } from '@/src/components/accounting/ConfidenceIndicator'
+import { HybridConfidenceDisplay } from '../feedback/ConfidenceIndicator'
+import { CheckCircleIcon, DocumentTextIcon, CpuChipIcon } from '@heroicons/react/24/outline'
 
 type AccountingStatus = 'needs_mapping' | 'ready_for_export' | 'exported'
 
@@ -24,6 +25,16 @@ export interface DocumentCardProps extends React.HTMLAttributes<HTMLDivElement> 
       sender?: string
       subject?: string
       original_filename?: string
+    }
+    // Hybrid extraction fields
+    extraction_confidence?: number
+    textract_confidence?: number
+    openai_confidence?: number
+    cross_validation_score?: number
+    extraction_costs?: {
+      textract?: number
+      openai?: number
+      total?: number
     }
     // Accounting fields
     accounting_status?: AccountingStatus
@@ -94,11 +105,12 @@ export const DocumentCard = React.forwardRef<HTMLDivElement, DocumentCardProps>(
     }
   }
 
-  const costInfo = formatCost(document.extraction_cost, document.extraction_method)
+  const costInfo = formatCost(document.extraction_costs?.total || document.extraction_cost, document.extraction_method)
   
   // Check if document is export ready
   const isExportReady = document.accounting_status === 'ready_for_export'
   const hasAccountingData = document.status === 'completed' && (document.accounting_status || document.mapping_confidence !== undefined)
+  const hasHybridData = document.extraction_confidence !== undefined && document.extraction_method === 'hybrid-textract-openai'
 
   // Default actions
   const defaultActions = [
@@ -170,11 +182,40 @@ export const DocumentCard = React.forwardRef<HTMLDivElement, DocumentCardProps>(
               )}
             </div>
 
+            {/* Hybrid Extraction Information */}
+            {hasHybridData && (
+              <div className="flex items-center space-x-4 mt-2 p-2 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg border border-blue-100">
+                <div className="flex items-center space-x-2">
+                  <CpuChipIcon className="w-4 h-4 text-blue-600" />
+                  <span className="text-xs font-medium text-blue-700">AI Hybrid</span>
+                </div>
+                
+                <HybridConfidenceDisplay 
+                  overallConfidence={document.extraction_confidence!}
+                  textractConfidence={document.textract_confidence}
+                  openaiConfidence={document.openai_confidence}
+                  crossValidationScore={document.cross_validation_score}
+                  className="flex-1"
+                />
+                
+                {document.extraction_costs && (
+                  <div className="text-xs text-gray-600">
+                    <span className="font-medium">${(document.extraction_costs.total || 0).toFixed(3)}</span>
+                    {document.extraction_costs.textract && document.extraction_costs.openai && (
+                      <span className="text-gray-500 ml-1">
+                        (T:{document.extraction_costs.textract.toFixed(3)} + O:{document.extraction_costs.openai.toFixed(3)})
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Accounting Information Row */}
             {hasAccountingData && (
               <div className="flex items-center space-x-4 mt-2">
-                {document.mapping_confidence !== undefined && (
-                  <ConfidenceIndicator 
+                {document.mapping_confidence !== undefined && !hasHybridData && (
+                  <AccountingConfidenceIndicator 
                     confidence={document.mapping_confidence} 
                     variant="dot" 
                     size="sm"
