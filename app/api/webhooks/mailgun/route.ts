@@ -188,11 +188,21 @@ async function uploadAttachment(
   userId: string
 ): Promise<{ url: string; filename: string } | null> {
   try {
-    // Generate unique filename
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
-    const randomId = Math.random().toString(36).substring(2, 15)
-    const extension = attachment.filename.split('.').pop()
-    const uniqueFilename = `${timestamp}-${randomId}.${extension}`
+    // Generate unique filename while preserving original name
+    const timestamp = new Date().toISOString().slice(0, 10) // YYYY-MM-DD format
+    const randomId = Math.random().toString(36).substring(2, 8) // Shorter ID
+    const originalName = attachment.filename
+    const extension = originalName.split('.').pop()
+    
+    // Clean the original filename (remove special chars but keep readable)
+    const cleanName = originalName
+      .replace(/\.[^/.]+$/, '') // Remove extension
+      .replace(/[^a-zA-Z0-9-_\s]/g, '') // Keep alphanumeric, dash, underscore, space
+      .replace(/\s+/g, '-') // Replace spaces with dashes
+      .substring(0, 50) // Limit length
+    
+    // Format: YYYY-MM-DD_originalname_abc123.pdf
+    const uniqueFilename = `${timestamp}_${cleanName}_${randomId}.${extension}`
     
     // Upload to Supabase Storage
     const { data, error } = await supabaseAdmin.storage
@@ -394,14 +404,15 @@ export async function POST(req: NextRequest) {
           continue
         }
         
-        // Create document record
+        // Create document record with original filename for display
         const documentId = await createEmailDocument(
           userId,
-          uploadResult.filename,
+          attachment.filename, // Use original filename for display
           uploadResult.url,
           {
             ...emailMetadata,
-            originalFilename: attachment.filename
+            originalFilename: attachment.filename,
+            storedFilename: uploadResult.filename // Keep track of storage filename
           }
         )
         
