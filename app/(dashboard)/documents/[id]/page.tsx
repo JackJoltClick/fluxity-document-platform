@@ -17,6 +17,7 @@ import { AccountingStatusBadge } from '@/src/components/accounting/AccountingSta
 import { ConfidenceIndicator } from '@/src/components/accounting/ConfidenceIndicator'
 import { DynamicAccountingFields } from '@/src/components/accounting/DynamicAccountingFields'
 import { JustificationReport } from '@/src/components/JustificationReport'
+import { ExtractedDataDisplay } from '@/src/components/document/ExtractedDataDisplay'
 
 import { 
   CheckCircleIcon,
@@ -110,6 +111,25 @@ function DocumentDetailsContent() {
         console.error('❌ Reprocess failed:', error)
       }
     })
+  }
+  
+  // Handle manual field mapping
+  const handleFieldMap = async (sourceKey: string, targetField: string) => {
+    console.log('🔗 Mapping field:', sourceKey, '→', targetField)
+    try {
+      // Get the value from unmapped fields
+      const unmappedValue = document?.extracted_data?.field_mappings?.unmapped?.[sourceKey]
+      if (unmappedValue !== undefined) {
+        await updateFieldMutation.mutateAsync({
+          documentId,
+          fieldKey: targetField,
+          newValue: unmappedValue
+        })
+        console.log('✅ Field mapped successfully')
+      }
+    } catch (error) {
+      console.error('❌ Failed to map field:', error)
+    }
   }
 
   // Retry failed document processing
@@ -472,13 +492,26 @@ function DocumentDetailsContent() {
           </div>
 
           {/* Accounting Fields - Right 60% */}
-          <div className="lg:col-span-3">
+          <div className="lg:col-span-3 space-y-8">
             <DynamicAccountingFields
               accountingFields={accountingFields}
               documentData={document}
               updateAccountingField={updateAccountingField}
               updateFieldMutation={updateFieldMutation}
             />
+            
+            {/* Extracted Data Display */}
+            {document.extracted_data && (
+              <div>
+                <h3 className="text-lg font-medium text-gray-900 mb-4">
+                  Extracted Data Mapping
+                </h3>
+                <ExtractedDataDisplay
+                  extractedData={document.extracted_data}
+                  onFieldMap={handleFieldMap}
+                />
+              </div>
+            )}
           </div>
         </div>
       )}
