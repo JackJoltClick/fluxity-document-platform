@@ -107,6 +107,14 @@ export const DocumentCard = React.forwardRef<HTMLDivElement, DocumentCardProps>(
 
   const costInfo = formatCost(document.extraction_costs?.total || document.extraction_cost, document.extraction_method)
   
+  // Safe confidence extraction helper
+  const safeConfidence = (value: any): number => {
+    if (typeof value === 'number') return value;
+    if (typeof value === 'object' && value?.value && typeof value.value === 'number') return value.value;
+    if (typeof value === 'object' && typeof value?.confidence === 'number') return value.confidence;
+    return 0;
+  };
+  
   // Check if document is export ready
   const isExportReady = document.accounting_status === 'ready_for_export'
   const hasAccountingData = document.status === 'completed' && (document.accounting_status || document.mapping_confidence !== undefined)
@@ -191,10 +199,10 @@ export const DocumentCard = React.forwardRef<HTMLDivElement, DocumentCardProps>(
                 </div>
                 
                 <HybridConfidenceDisplay 
-                  overallConfidence={document.extraction_confidence!}
-                  textractConfidence={document.textract_confidence}
-                  openaiConfidence={document.openai_confidence}
-                  crossValidationScore={document.cross_validation_score}
+                  overallConfidence={safeConfidence(document.extraction_confidence)}
+                  textractConfidence={document.textract_confidence ? safeConfidence(document.textract_confidence) : undefined}
+                  openaiConfidence={document.openai_confidence ? safeConfidence(document.openai_confidence) : undefined}
+                  crossValidationScore={document.cross_validation_score ? safeConfidence(document.cross_validation_score) : undefined}
                   className="flex-1"
                 />
                 
