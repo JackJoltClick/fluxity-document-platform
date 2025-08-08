@@ -87,11 +87,19 @@ export function ExtractedDataDisplay({ extractedData, onFieldMap, className }: E
                 const detail = mappingDetails.find((d: any) => d.targetField === field);
                 const fieldLabel = ACCOUNTING_FIELDS.find(f => f.value === field)?.label || field;
                 
+                // Handle value rendering safely
+                const renderValue = (val: any) => {
+                  if (val === null || val === undefined) return 'N/A';
+                  if (typeof val === 'object' && val.value !== undefined) return val.value;
+                  if (typeof val === 'object') return JSON.stringify(val);
+                  return String(val);
+                };
+
                 return (
                   <div key={field} className="flex items-start justify-between py-2 border-b border-gray-100 last:border-0">
                     <div className="flex-1">
                       <div className="text-sm font-medium text-gray-700">{fieldLabel}</div>
-                      <div className="text-sm text-gray-900 mt-1">{value}</div>
+                      <div className="text-sm text-gray-900 mt-1">{renderValue(value)}</div>
                       {detail && (
                         <div className="text-xs text-gray-500 mt-1">
                           Source: "{detail.sourceKey}" • Confidence: {(detail.confidence * 100).toFixed(0)}%
@@ -132,12 +140,21 @@ export function ExtractedDataDisplay({ extractedData, onFieldMap, className }: E
                 These fields were extracted but couldn't be automatically mapped to accounting fields.
               </p>
               <div className="space-y-3">
-                {Object.entries(unmappedFields).map(([key, value]) => (
-                  <div key={key} className="flex items-start justify-between py-3 border-b border-gray-100 last:border-0">
-                    <div className="flex-1">
-                      <div className="text-sm font-medium text-gray-700">{key}</div>
-                      <div className="text-sm text-gray-900 mt-1">{value}</div>
-                    </div>
+                {Object.entries(unmappedFields).map(([key, value]) => {
+                  // Handle value rendering safely
+                  const renderValue = (val: any) => {
+                    if (val === null || val === undefined) return 'N/A';
+                    if (typeof val === 'object' && val.value !== undefined) return val.value;
+                    if (typeof val === 'object') return JSON.stringify(val);
+                    return String(val);
+                  };
+
+                  return (
+                    <div key={key} className="flex items-start justify-between py-3 border-b border-gray-100 last:border-0">
+                      <div className="flex-1">
+                        <div className="text-sm font-medium text-gray-700">{key}</div>
+                        <div className="text-sm text-gray-900 mt-1">{renderValue(value)}</div>
+                      </div>
                     {onFieldMap && (
                       <select
                         className="ml-4 text-sm border border-gray-300 rounded-md px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -155,9 +172,10 @@ export function ExtractedDataDisplay({ extractedData, onFieldMap, className }: E
                           </option>
                         ))}
                       </select>
-                    )}
-                  </div>
-                ))}
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}
