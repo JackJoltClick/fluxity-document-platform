@@ -167,7 +167,11 @@ function DocumentDetailsContent() {
     
     // Use the mapping_confidence if available (set by Stage 19)
     if (document.mapping_confidence !== undefined) {
-      return document.mapping_confidence
+      // Ensure it's a number
+      const conf = document.mapping_confidence;
+      if (typeof conf === 'number') return conf;
+      if (typeof conf === 'object' && conf?.value && typeof conf.value === 'number') return conf.value;
+      if (typeof conf === 'object' && conf?.confidence && typeof conf.confidence === 'number') return conf.confidence;
     }
     
     // Fallback: calculate from individual field confidences
@@ -180,7 +184,12 @@ function DocumentDetailsContent() {
     if (fields.length === 0) return 0
     
     const totalConfidence = fields.reduce((sum, key) => {
-      return sum + (extractedData[key].confidence || 0)
+      const fieldConf = extractedData[key].confidence;
+      // Ensure confidence is a number
+      if (typeof fieldConf === 'number') return sum + fieldConf;
+      if (typeof fieldConf === 'object' && fieldConf?.value && typeof fieldConf.value === 'number') return sum + fieldConf.value;
+      if (typeof fieldConf === 'object' && fieldConf?.confidence && typeof fieldConf.confidence === 'number') return sum + fieldConf.confidence;
+      return sum;
     }, 0)
     
     return totalConfidence / fields.length
@@ -190,7 +199,13 @@ function DocumentDetailsContent() {
   const getFieldConfidence = (fieldKey: string): number => {
     if (!document?.extracted_data) return 0
     const extractedData = document.extracted_data as any
-    return extractedData[fieldKey]?.confidence || 0.5
+    const conf = extractedData[fieldKey]?.confidence;
+    
+    // Ensure confidence is a number
+    if (typeof conf === 'number') return conf;
+    if (typeof conf === 'object' && conf?.value && typeof conf.value === 'number') return conf.value;
+    if (typeof conf === 'object' && conf?.confidence && typeof conf.confidence === 'number') return conf.confidence;
+    return 0.5;
   }
 
   if (isLoading) {
@@ -272,7 +287,9 @@ function DocumentDetailsContent() {
     requires_review: document.requires_review,
     isAccountingReady,
     needsReview,
-    overallConfidence
+    overallConfidence: typeof overallConfidence === 'object' 
+      ? JSON.stringify(overallConfidence) 
+      : overallConfidence
   })
 
   return (
