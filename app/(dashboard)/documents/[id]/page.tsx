@@ -40,7 +40,31 @@ function DocumentDetailsContent() {
   const retryMutation = useRetryDocument()
 
   // Get accounting fields from extracted data
-  const accountingFields = document?.extracted_data?.accounting_fields || {}
+  const rawAccountingFields = document?.extracted_data?.accounting_fields || {}
+  
+  // Transform accounting fields to extract values and confidence separately
+  const accountingFields = Object.entries(rawAccountingFields).reduce((acc, [key, fieldData]) => {
+    if (fieldData && typeof fieldData === 'object' && 'value' in fieldData) {
+      // Handle new format: {value, confidence}
+      acc[key] = {
+        value: fieldData.value,
+        confidence: fieldData.confidence || 0
+      };
+    } else if (fieldData && typeof fieldData === 'object' && fieldData.value !== undefined) {
+      // Handle nested value format
+      acc[key] = {
+        value: fieldData.value,
+        confidence: fieldData.confidence || 0
+      };
+    } else {
+      // Handle direct value format (legacy)
+      acc[key] = {
+        value: fieldData,
+        confidence: 0.5
+      };
+    }
+    return acc;
+  }, {} as Record<string, {value: any, confidence: number}>);
   
   // Helper to get field value and confidence
   const getFieldData = (fieldName: string) => {
