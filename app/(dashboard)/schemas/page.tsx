@@ -108,10 +108,10 @@ export default function SchemasPage() {
       setError(null)
       
       // Check if user is authenticated
-      const { data: { user } } = await supabase.auth.getUser()
-      console.log('Current user for email alias:', user)
+      const { data: { session } } = await supabase.auth.getSession()
+      console.log('Current session for email alias:', session)
       
-      if (!user) {
+      if (!session?.access_token) {
         throw new Error('User not authenticated. Please log in.')
       }
 
@@ -121,13 +121,19 @@ export default function SchemasPage() {
       
       console.log('About to insert email alias:', payload)
       
-      const { error } = await supabase
-        .from('email_aliases')
-        .insert([payload])
+      // Use API endpoint to bypass RLS
+      const response = await fetch('/api/email-aliases', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify(payload)
+      })
 
-      if (error) {
-        console.error('Database error adding email alias:', error)
-        throw error
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to add email alias')
       }
 
       setNewEmailAddress('')
@@ -213,10 +219,10 @@ export default function SchemasPage() {
       setError(null)
 
       // Check if user is authenticated
-      const { data: { user } } = await supabase.auth.getUser()
-      console.log('Current user:', user)
+      const { data: { session } } = await supabase.auth.getSession()
+      console.log('Current session:', session)
       
-      if (!user) {
+      if (!session?.access_token) {
         throw new Error('User not authenticated. Please log in.')
       }
 
@@ -232,31 +238,38 @@ export default function SchemasPage() {
       const payload = {
         name: formData.name.trim(),
         description: formData.description.trim() || null,
-        columns: columnsData, // Send as object, not string
-        is_default: schemas.length === 0 // First schema becomes default
+        columns: columnsData
       }
       
       console.log('About to submit payload:', payload)
 
-      let result
       if (editingSchema) {
-        // Update existing schema
-        result = await supabase
+        // Update existing schema - still use direct supabase for updates
+        const result = await supabase
           .from('client_schemas')
           .update(payload)
           .eq('id', editingSchema.id)
           .select()
+          
+        if (result.error) {
+          console.error('Database error:', result.error)
+          throw result.error
+        }
       } else {
-        // Create new schema
-        result = await supabase
-          .from('client_schemas')
-          .insert([payload])
-          .select()
-      }
+        // Create new schema via API endpoint
+        const response = await fetch('/api/schemas', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`
+          },
+          body: JSON.stringify(payload)
+        })
 
-      if (result.error) {
-        console.error('Database error:', result.error)
-        throw result.error
+        if (!response.ok) {
+          const errorData = await response.json()
+          throw new Error(errorData.error || 'Failed to create schema')
+        }
       }
 
       // Reset form
