@@ -12,6 +12,9 @@ interface DocumentWithAccounting {
   filename: string
   created_at: string
   updated_at?: string
+  status?: string
+  extraction_method?: string | null
+  extraction_cost?: number | null
   client_schema_id?: string | null
   extracted_data?: any
   accounting_status?: 'needs_mapping' | 'ready_for_export' | 'exported'
@@ -194,14 +197,23 @@ export class ExcelExportService {
     dateFormat: 'iso' | 'locale' | 'short'
   ): void {
     const isLegacy = schemaId === 'legacy' || !schema
-    const sheetName = isLegacy ? 'Legacy Fields' : schema.name.substring(0, 31)
+    const sheetName = isLegacy ? 'Accounting Fields' : schema.name.substring(0, 31)
+
+    // For legacy documents, we'll create TWO worksheets:
+    // 1. Extracted Data - All the raw extracted information
+    // 2. Accounting Fields - The mapped accounting fields
+    
+    if (isLegacy && documents.length > 0) {
+      // Create Extracted Data worksheet first
+      this.createExtractedDataWorksheet(workbook, documents, includeConfidenceScores, dateFormat)
+    }
 
     // Determine columns based on schema type
     const dataColumns = isLegacy 
       ? LEGACY_ACCOUNTING_FIELDS 
       : schema.columns.map(col => col.name)
 
-    // Create headers
+    // Create headers for accounting/schema fields
     const headers = [
       'Document ID',
       'Filename',
@@ -226,8 +238,11 @@ export class ExcelExportService {
       // Add field values
       const fieldValues = dataColumns.map(fieldName => {
         if (isLegacy) {
-          // Legacy fields are stored directly on document
-          return this.formatCellValue(doc[fieldName as keyof DocumentWithAccounting])
+          // For legacy, get from accounting_fields in extracted_data
+          const accountingFields = doc.extracted_data?.accounting_fields || {}
+          const fieldData = accountingFields[fieldName]
+          // Use the value from extraction, or fallback to document field
+          return this.formatCellValue(fieldData?.value ?? doc[fieldName as keyof DocumentWithAccounting])
         } else {
           // Dynamic schema fields are in extracted_data.client_fields
           const clientFields = doc.extracted_data?.client_fields || {}
@@ -273,6 +288,104 @@ export class ExcelExportService {
 
     // Add worksheet to workbook
     XLSX.utils.book_append_sheet(workbook, worksheet, sheetName)
+  }
+
+  private static createExtractedDataWorksheet(
+    workbook: XLSX.WorkBook,
+    documents: DocumentWithAccounting[],
+    includeConfidenceScores: boolean,
+    dateFormat: 'iso' | 'locale' | 'short'
+  ): void {
+    // Collect all unique extracted fields from all documents
+    const allExtractedFields = new Set<string>()
+    
+    documents.forEach(doc => {
+      if (doc.extracted_data) {
+        // Get all top-level extracted fields (excluding nested objects like accounting_fields)
+        Object.keys(doc.extracted_data).forEach(key => {
+          if (key !== 'accounting_fields' && 
+              key !== 'client_fields' && 
+              key !== 'justification_report' &&
+              key !== 'document_metadata' &&
+              key !== 'validation_flags') {
+            allExtractedFields.add(key)
+          }
+        })
+      }
+    })
+
+    // Convert to sorted array for consistent column order
+    const extractedFieldNames = Array.from(allExtractedFields).sort()
+
+    // Create headers
+    const headers = [
+      'Document ID',
+      'Filename',
+      'Created Date',
+      'Processing Status',
+      'Extraction Method',
+      'Extraction Cost',
+      ...extractedFieldNames
+    ]
+
+    if (includeConfidenceScores) {
+      headers.push(...extractedFieldNames.map(field => `${field}_confidence`))
+    }
+
+    // Create data rows
+    const rows = documents.map(doc => {
+      const baseRow = [
+        doc.id,
+        doc.filename,
+        this.formatDate(doc.created_at, dateFormat),
+        doc.status,
+        doc.extraction_method || 'unknown',
+        doc.extraction_cost || ''
+      ]
+
+      // Add extracted field values
+      const fieldValues = extractedFieldNames.map(fieldName => {
+        const fieldData = doc.extracted_data?.[fieldName]
+        // Handle both direct values and {value, confidence} objects
+        if (fieldData && typeof fieldData === 'object' && 'value' in fieldData) {
+          return this.formatCellValue(fieldData.value)
+        }
+        return this.formatCellValue(fieldData)
+      })
+
+      const row = [...baseRow, ...fieldValues]
+
+      // Add confidence scores if requested
+      if (includeConfidenceScores) {
+        const confidenceValues = extractedFieldNames.map(fieldName => {
+          const fieldData = doc.extracted_data?.[fieldName]
+          if (fieldData && typeof fieldData === 'object' && 'confidence' in fieldData) {
+            return fieldData.confidence || ''
+          }
+          return ''
+        })
+        row.push(...confidenceValues)
+      }
+
+      return row
+    })
+
+    // Create worksheet
+    const worksheetData = [headers, ...rows]
+    const worksheet = XLSX.utils.aoa_to_sheet(worksheetData)
+
+    // Auto-size columns
+    const colWidths = headers.map((header, index) => {
+      const maxLength = Math.max(
+        header.length,
+        ...rows.map(row => String(row[index] || '').length)
+      )
+      return { wch: Math.min(maxLength + 2, 50) }
+    })
+    worksheet['!cols'] = colWidths
+
+    // Add worksheet to workbook
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Extracted Data')
   }
 
   private static formatDate(dateString: string, format: 'iso' | 'locale' | 'short'): string {
