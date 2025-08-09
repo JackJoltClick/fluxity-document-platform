@@ -22,6 +22,9 @@ export interface DocumentWithAccounting {
   mapping_confidence?: number
   requires_review?: boolean
   
+  // Client schema support
+  client_schema_id?: string | null
+  
   // 21 Accounting Fields
   company_code?: string | null
   supplier_invoice_transaction_type?: string | null

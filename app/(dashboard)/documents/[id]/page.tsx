@@ -1,8 +1,10 @@
 'use client'
 
 import { useParams, useRouter } from 'next/navigation'
+import { useState, useEffect } from 'react'
 import { useDocument, useUpdateDocumentField, useReprocessDocument, useRetryDocument } from '@/src/hooks/useDocument'
 import { useAuthStore } from '@/src/stores/auth.store'
+import { supabase } from '@/src/lib/supabase/client'
 import { StatusBadge, CostDisplay } from '@/src/components/StatusBadge'
 import ErrorBoundary from '@/src/components/ErrorBoundary'
 import VendorMatchingSection from '@/src/components/VendorMatchingSection'
@@ -26,11 +28,22 @@ import {
   CogIcon
 } from '@heroicons/react/24/outline'
 
+interface ClientSchema {
+  id: string
+  name: string
+  description: string | null
+  columns: { name: string; description: string }[]
+}
+
 function DocumentDetailsContent() {
   const params = useParams()
   const router = useRouter()
   const { user } = useAuthStore()
   const documentId = params.id as string
+
+  // Client schema state
+  const [clientSchema, setClientSchema] = useState<ClientSchema | null>(null)
+  const [schemaLoading, setSchemaLoading] = useState(false)
 
   // React Query hooks
   const { data: document, isLoading, error, refetch } = useDocument(documentId)
@@ -38,12 +51,49 @@ function DocumentDetailsContent() {
   const reprocessMutation = useReprocessDocument()
   const retryMutation = useRetryDocument()
 
-  // Get accounting fields from extracted data
-  const accountingFields = document?.extracted_data?.accounting_fields || {}
+  // Fetch client schema if document has one
+  useEffect(() => {
+    const fetchClientSchema = async () => {
+      if (!document?.client_schema_id) return
+      
+      try {
+        setSchemaLoading(true)
+        const { data, error } = await supabase
+          .from('client_schemas')
+          .select('id, name, description, columns')
+          .eq('id', document.client_schema_id)
+          .single()
+
+        if (error) {
+          console.error('Error fetching client schema:', error)
+          return
+        }
+
+        setClientSchema(data)
+      } catch (error) {
+        console.error('Failed to fetch client schema:', error)
+      } finally {
+        setSchemaLoading(false)
+      }
+    }
+    
+    if (document?.client_schema_id && !clientSchema) {
+      fetchClientSchema()
+    }
+  }, [document?.client_schema_id, clientSchema])
+
+  // Determine if using dynamic schema or legacy accounting fields
+  const isUsingDynamicSchema = !!(document?.client_schema_id && clientSchema)
+  const hasClientFields = !!(document?.extracted_data?.client_fields)
+  
+  // Get fields data based on schema type
+  const fieldsData = isUsingDynamicSchema && hasClientFields 
+    ? document?.extracted_data?.client_fields || {}
+    : document?.extracted_data?.accounting_fields || {}
   
   // Helper to get field value and confidence
   const getFieldData = (fieldName: string) => {
-    return accountingFields[fieldName] || { value: null, confidence: 0 }
+    return fieldsData[fieldName] || { value: null, confidence: 0 }
   }
   
   // Update accounting field using React Query
@@ -235,6 +285,13 @@ function DocumentDetailsContent() {
     <div className="space-y-8">
       <PageHeader
         title={document.filename}
+        subtitle={
+          isUsingDynamicSchema && clientSchema
+            ? `Schema: ${clientSchema.name} (${clientSchema.columns.length} columns)`
+            : document.extraction_method === 'dynamic-schema-mapping'
+            ? 'Dynamic Schema Processing'
+            : 'Legacy Accounting Fields (21 columns)'
+        }
         breadcrumb={{
           label: 'Back to Documents',
           href: '/documents'
@@ -248,6 +305,11 @@ function DocumentDetailsContent() {
             <StatusBadge status={document.status} />
             {document.accounting_status && (
               <AccountingStatusBadge status={document.accounting_status} />
+            )}
+            {isUsingDynamicSchema && (
+              <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full font-medium">
+                Dynamic Schema
+              </span>
             )}
             <CostDisplay 
               cost={document.extraction_cost ?? null} 
@@ -474,10 +536,13 @@ function DocumentDetailsContent() {
           {/* Accounting Fields - Right 60% */}
           <div className="lg:col-span-3">
             <DynamicAccountingFields
-              accountingFields={accountingFields}
+              accountingFields={fieldsData}
               documentData={document}
               updateAccountingField={updateAccountingField}
               updateFieldMutation={updateFieldMutation}
+              clientSchema={clientSchema}
+              isUsingDynamicSchema={isUsingDynamicSchema}
+              schemaLoading={schemaLoading}
             />
           </div>
         </div>

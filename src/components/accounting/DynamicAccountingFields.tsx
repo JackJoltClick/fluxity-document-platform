@@ -5,11 +5,21 @@ import { AccountingField } from './AccountingField'
 import { CompanyCodeSelector } from './CompanyCodeSelector'
 import { GLAccountSelector } from './GLAccountSelector'
 
+interface ClientSchema {
+  id: string
+  name: string
+  description: string | null
+  columns: { name: string; description: string }[]
+}
+
 interface DynamicAccountingFieldsProps {
   accountingFields: any
   documentData: any
   updateAccountingField: (fieldKey: string, newValue: any) => Promise<void>
   updateFieldMutation: any
+  clientSchema?: ClientSchema | null
+  isUsingDynamicSchema?: boolean
+  schemaLoading?: boolean
 }
 
 // Field type definition
@@ -122,24 +132,124 @@ export function DynamicAccountingFields({
   accountingFields,
   documentData,
   updateAccountingField,
-  updateFieldMutation
+  updateFieldMutation,
+  clientSchema,
+  isUsingDynamicSchema = false,
+  schemaLoading = false
 }: DynamicAccountingFieldsProps) {
-  // Calculate group confidence
+  // Calculate group confidence for legacy fields
   const calculateGroupConfidence = (fields: any[]) => {
     const validFields = fields.filter(field => {
-      const fieldData = accountingFields[field.key]
+      const fieldKey = typeof field === 'string' ? field : field.key
+      const fieldData = accountingFields[fieldKey]
       return fieldData && typeof fieldData.confidence === 'number'
     })
     
     if (validFields.length === 0) return 0.5
     
     const totalConfidence = validFields.reduce((sum, field) => {
-      return sum + (accountingFields[field.key]?.confidence || 0)
+      const fieldKey = typeof field === 'string' ? field : field.key
+      return sum + (accountingFields[fieldKey]?.confidence || 0)
     }, 0)
     
     return totalConfidence / validFields.length
   }
 
+  // Calculate confidence for dynamic schema columns
+  const calculateDynamicConfidence = (columns: any[]) => {
+    const validColumns = columns.filter(column => {
+      const fieldData = accountingFields[column.name]
+      return fieldData && typeof fieldData.confidence === 'number'
+    })
+    
+    if (validColumns.length === 0) return 0.5
+    
+    const totalConfidence = validColumns.reduce((sum, column) => {
+      return sum + (accountingFields[column.name]?.confidence || 0)
+    }, 0)
+    
+    return totalConfidence / validColumns.length
+  }
+
+  // Show loading state while fetching schema
+  if (schemaLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+          <div className="p-6">
+            <div className="animate-pulse">
+              <div className="h-6 bg-gray-200 rounded w-1/3 mb-4"></div>
+              <div className="space-y-3">
+                <div className="h-10 bg-gray-200 rounded"></div>
+                <div className="h-10 bg-gray-200 rounded"></div>
+                <div className="h-10 bg-gray-200 rounded"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Render dynamic schema fields
+  if (isUsingDynamicSchema && clientSchema) {
+    return (
+      <div className="space-y-6">
+        <AccountingFieldGroup
+          title={`${clientSchema.name} Fields`}
+          description={clientSchema.description || `Custom schema with ${clientSchema.columns.length} columns`}
+          confidence={calculateDynamicConfidence(clientSchema.columns)}
+          required={true}
+        >
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {clientSchema.columns.map((column, index) => {
+              const fieldData = accountingFields[column.name] || { value: null, confidence: 0 }
+              const value = fieldData.value !== null ? fieldData.value : null
+              const confidence = fieldData.confidence || 0.5
+              
+              return (
+                <div key={`${column.name}-${index}`} className="space-y-2">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        {column.name}
+                      </label>
+                      <p className="text-xs text-gray-500 mb-2">{column.description}</p>
+                    </div>
+                  </div>
+                  
+                  <AccountingField
+                    label=""
+                    value={value}
+                    confidence={confidence}
+                    fieldKey={column.name}
+                    type="text"
+                    required={false}
+                    onEdit={updateAccountingField}
+                    isLoading={updateFieldMutation.isPending && updateFieldMutation.variables?.fieldKey === column.name}
+                  />
+                </div>
+              )
+            })}
+          </div>
+        </AccountingFieldGroup>
+        
+        {/* Show schema metadata */}
+        <div className="bg-gray-50 rounded-lg p-4">
+          <div className="flex items-center justify-between text-sm">
+            <div className="text-gray-600">
+              <span className="font-medium">Schema:</span> {clientSchema.name}
+            </div>
+            <div className="text-gray-500">
+              {clientSchema.columns.length} columns • Dynamic mapping
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Fallback to legacy accounting fields
   return (
     <div className="space-y-6">
       {Object.entries(FIELD_GROUPS).map(([groupKey, group]) => (
