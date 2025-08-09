@@ -240,6 +240,7 @@ export default function SchemasPage() {
       }
 
       if (result.error) {
+        console.error('Database error:', result.error)
         throw result.error
       }
 
@@ -252,7 +253,6 @@ export default function SchemasPage() {
       await fetchSchemas()
     } catch (err) {
       console.error('Error saving schema:', err)
-      console.error('Payload was:', payload)
       console.error('Full error:', JSON.stringify(err, null, 2))
       setError(err instanceof Error ? err.message : 'Failed to save schema')
     } finally {
