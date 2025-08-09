@@ -106,13 +106,27 @@ export default function SchemasPage() {
 
     try {
       setError(null)
+      
+      // Check if user is authenticated
+      const { data: { user } } = await supabase.auth.getUser()
+      console.log('Current user for email alias:', user)
+      
+      if (!user) {
+        throw new Error('User not authenticated. Please log in.')
+      }
+
+      const payload = {
+        email_address: newEmailAddress.trim()
+      }
+      
+      console.log('About to insert email alias:', payload)
+      
       const { error } = await supabase
         .from('email_aliases')
-        .insert([{
-          email_address: newEmailAddress.trim()
-        }])
+        .insert([payload])
 
       if (error) {
+        console.error('Database error adding email alias:', error)
         throw error
       }
 
@@ -120,6 +134,7 @@ export default function SchemasPage() {
       await fetchEmailAliases()
     } catch (err) {
       console.error('Error adding email alias:', err)
+      console.error('Full email alias error:', JSON.stringify(err, null, 2))
       setError(err instanceof Error ? err.message : 'Failed to add email alias')
     }
   }
