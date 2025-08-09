@@ -26,14 +26,24 @@ interface NewColumn {
   id: string
 }
 
+interface EmailAlias {
+  id: string
+  email_address: string
+  user_id: string
+  created_at: string
+}
+
 export default function SchemasPage() {
   const router = useRouter()
   const [schemas, setSchemas] = useState<ClientSchema[]>([])
+  const [emailAliases, setEmailAliases] = useState<EmailAlias[]>([])
   const [loading, setLoading] = useState(true)
+  const [emailLoading, setEmailLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [editingSchema, setEditingSchema] = useState<ClientSchema | null>(null)
   const [creating, setCreating] = useState(false)
+  const [newEmailAddress, setNewEmailAddress] = useState('')
 
   // Form state
   const [formData, setFormData] = useState({
@@ -44,6 +54,7 @@ export default function SchemasPage() {
 
   useEffect(() => {
     fetchSchemas()
+    fetchEmailAliases()
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchSchemas = async () => {
@@ -66,6 +77,71 @@ export default function SchemasPage() {
       setError(err instanceof Error ? err.message : 'Failed to fetch schemas')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const fetchEmailAliases = async () => {
+    try {
+      setEmailLoading(true)
+      const { data, error } = await supabase
+        .from('email_aliases')
+        .select('*')
+        .order('created_at', { ascending: false })
+
+      if (error) {
+        console.error('Error fetching email aliases:', error)
+        return
+      }
+
+      setEmailAliases(data || [])
+    } catch (err) {
+      console.error('Failed to fetch email aliases:', err)
+    } finally {
+      setEmailLoading(false)
+    }
+  }
+
+  const addEmailAlias = async () => {
+    if (!newEmailAddress.trim()) return
+
+    try {
+      setError(null)
+      const { error } = await supabase
+        .from('email_aliases')
+        .insert([{
+          email_address: newEmailAddress.trim()
+        }])
+
+      if (error) {
+        throw error
+      }
+
+      setNewEmailAddress('')
+      await fetchEmailAliases()
+    } catch (err) {
+      console.error('Error adding email alias:', err)
+      setError(err instanceof Error ? err.message : 'Failed to add email alias')
+    }
+  }
+
+  const deleteEmailAlias = async (alias: EmailAlias) => {
+    if (!confirm(`Are you sure you want to remove "${alias.email_address}"?`)) return
+
+    try {
+      setError(null)
+      const { error } = await supabase
+        .from('email_aliases')
+        .delete()
+        .eq('id', alias.id)
+
+      if (error) {
+        throw error
+      }
+
+      await fetchEmailAliases()
+    } catch (err) {
+      console.error('Error deleting email alias:', err)
+      setError(err instanceof Error ? err.message : 'Failed to delete email alias')
     }
   }
 
@@ -263,6 +339,81 @@ export default function SchemasPage() {
           {error}
         </Alert>
       )}
+
+      {/* Email Configuration Section */}
+      <Card className="p-6">
+        <h3 className="text-lg font-medium mb-4">Email Configuration</h3>
+        <p className="text-sm text-gray-600 mb-6">
+          Configure email addresses that can receive documents for processing. Documents sent to these addresses will use your default schema.
+        </p>
+        
+        <div className="space-y-4">
+          {/* Add New Email */}
+          <div className="flex gap-3">
+            <div className="flex-1">
+              <input
+                type="email"
+                value={newEmailAddress}
+                onChange={(e) => setNewEmailAddress(e.target.value)}
+                placeholder="Enter email address (e.g., accounting@fluxity.ai)"
+                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                onKeyPress={(e) => e.key === 'Enter' && addEmailAlias()}
+              />
+            </div>
+            <Button
+              onClick={addEmailAlias}
+              disabled={!newEmailAddress.trim() || emailLoading}
+              variant="primary"
+            >
+              Add Email
+            </Button>
+          </div>
+
+          {/* Email List */}
+          {emailLoading ? (
+            <div className="text-center py-4">
+              <span className="text-sm text-gray-500">Loading email addresses...</span>
+            </div>
+          ) : emailAliases.length > 0 ? (
+            <div className="space-y-2">
+              {emailAliases.map((alias) => (
+                <div key={alias.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <div>
+                    <span className="font-medium">{alias.email_address}</span>
+                    <span className="text-xs text-gray-500 ml-2">
+                      Added {new Date(alias.created_at).toLocaleDateString()}
+                    </span>
+                  </div>
+                  <Button
+                    onClick={() => deleteEmailAlias(alias)}
+                    variant="outline"
+                    size="sm"
+                    className="text-red-600 hover:text-red-700"
+                  >
+                    Remove
+                  </Button>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-6 text-gray-500">
+              <p>No email addresses configured.</p>
+              <p className="text-sm mt-1">Add an email address to start receiving documents.</p>
+            </div>
+          )}
+
+          {/* Info Box */}
+          <div className="bg-blue-50 p-4 rounded-lg">
+            <h4 className="font-medium text-blue-900 mb-2">How Email Processing Works</h4>
+            <ul className="text-sm text-blue-800 space-y-1">
+              <li>• Documents sent to your configured email addresses are automatically processed</li>
+              <li>• They will use your <strong>default schema</strong> (marked with "Default" badge above)</li>
+              <li>• If no default schema is set, documents use standard 21 accounting fields</li>
+              <li>• Set up your Mailgun forwarding to route emails to these addresses</li>
+            </ul>
+          </div>
+        </div>
+      </Card>
 
       {showCreateForm && (
         <Card className="p-6">
