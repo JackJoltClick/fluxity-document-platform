@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "next lint",
     "storybook": "storybook dev -p 6006",
-    "build-storybook": "storybook build"
+    "build-storybook": "storybook build",
+    "create-sample-schemas": "node scripts/create-sample-schemas.js"
   },
   "dependencies": {
     "@aws-sdk/client-sqs": "^3.859.0",

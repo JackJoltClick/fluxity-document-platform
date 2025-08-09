@@ -205,7 +205,7 @@ export default function SchemasPage() {
       const payload = {
         name: formData.name.trim(),
         description: formData.description.trim() || null,
-        columns: JSON.stringify(columnsData),
+        columns: columnsData, // Send as object, not string
         is_default: schemas.length === 0 // First schema becomes default
       }
 
