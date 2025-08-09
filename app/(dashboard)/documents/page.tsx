@@ -375,9 +375,10 @@ function DocumentsContent() {
       </div>
 
       {/* Bulk Export Section */}
-      {filteredDocuments.length > 0 && (
+      {(selectedDocuments.length > 0 || filteredDocuments.length > 0) && (
         <BulkExportButton 
           documents={filteredDocuments as DocumentWithAccounting[]} 
+          selectedDocumentIds={selectedDocuments}
           className="mb-6"
         />
       )}
