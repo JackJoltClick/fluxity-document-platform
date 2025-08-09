@@ -7,7 +7,7 @@ export const maxDuration = 300 // 5 minutes timeout
 
 export async function POST(request: NextRequest) {
   try {
-    const { documentId } = await request.json()
+    const { documentId, clientSchemaId } = await request.json()
 
     if (!documentId) {
       return NextResponse.json(
@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    console.log(`🔄 API: Processing document ${documentId}`)
+    console.log(`🔄 API: Processing document ${documentId}${clientSchemaId ? ` with client schema ${clientSchemaId}` : ' (no schema specified)'}`)
 
     // Get document details
     const { data: document, error: fetchError } = await supabaseAdmin
@@ -41,6 +41,36 @@ export async function POST(request: NextRequest) {
       })
     }
 
+    // Validate client schema if provided
+    let validatedSchemaId = null
+    if (clientSchemaId) {
+      console.log(`📊 API: Validating client schema ${clientSchemaId} for user ${document.user_id}`)
+      
+      const { data: schema, error: schemaError } = await supabaseAdmin
+        .from('client_schemas')
+        .select('id, name, columns')
+        .eq('id', clientSchemaId)
+        .eq('user_id', document.user_id)
+        .eq('is_active', true)
+        .single()
+      
+      if (schemaError || !schema) {
+        console.error('Schema validation error:', schemaError)
+        return NextResponse.json(
+          { 
+            success: false, 
+            error: `Invalid client schema: ${schemaError?.message || 'Schema not found or not accessible'}` 
+          },
+          { status: 400 }
+        )
+      }
+      
+      validatedSchemaId = schema.id
+      console.log(`✅ API: Using client schema "${schema.name}" with ${schema.columns.length} columns`)
+    } else {
+      console.log('📊 API: No client schema specified, will use default or legacy system')
+    }
+
     // Check if SQS is enabled
     const sqsService = new SQSService()
     const useSQS = await sqsService.isEnabled()
@@ -58,19 +88,21 @@ export async function POST(request: NextRequest) {
       // Update status to queued
       await updateDocumentStatus(documentId, 'queued')
       
-      // Send to SQS queue with all required data
+      // Send to SQS queue with all required data including schema
       await sqsService.sendDocumentForProcessing(
         documentId, 
         document.user_id,
         document.file_url,
-        document.filename
+        document.filename,
+        validatedSchemaId
       )
       
       return NextResponse.json({
         success: true,
         message: 'Document queued for processing',
         document: { ...document, status: 'queued' },
-        method: 'sqs'
+        method: 'sqs',
+        clientSchemaId: validatedSchemaId
       })
       
     } catch (sqsError) {
