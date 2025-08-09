@@ -10,6 +10,7 @@ import { LoadingState } from '@/src/components/design-system/feedback/LoadingSta
 import { ErrorState } from '@/src/components/design-system/feedback/ErrorState'
 import { EmptyState } from '@/src/components/design-system/feedback/EmptyState'
 import { DocumentCard } from '@/src/components/design-system/dashboard/DocumentCard'
+import { BulkExportButton } from '@/src/components/export/BulkExportButton'
 import { 
   FunnelIcon,
   CheckIcon,
@@ -366,6 +367,14 @@ function DocumentsContent() {
           </div>
         </div>
       </div>
+
+      {/* Bulk Export Section */}
+      {filteredDocuments.length > 0 && (
+        <BulkExportButton 
+          documents={filteredDocuments as DocumentWithAccounting[]} 
+          className="mb-6"
+        />
+      )}
 
       {/* Documents List */}
       <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">

@@ -20,6 +20,9 @@ import { ConfidenceIndicator } from '@/src/components/accounting/ConfidenceIndic
 import { DynamicAccountingFields } from '@/src/components/accounting/DynamicAccountingFields'
 import { JustificationReport } from '@/src/components/JustificationReport'
 
+// Export Components
+import { ExcelExportButton } from '@/src/components/export/ExcelExportButton'
+
 import { 
   CheckCircleIcon,
   ExclamationTriangleIcon,
@@ -417,6 +420,16 @@ function DocumentDetailsContent() {
               </div>
               
               <div className="flex items-center space-x-3">
+                {/* Export Button - Always available for completed documents */}
+                <ExcelExportButton
+                  document={document}
+                  variant="outline"
+                  size="md"
+                  onExportStart={() => console.log('📤 Starting Excel export for document:', document.id)}
+                  onExportComplete={() => console.log('✅ Excel export completed successfully')}
+                  onExportError={(error) => console.error('❌ Excel export failed:', error)}
+                />
+                
                 <button
                   onClick={reprocessAllFields}
                   disabled={reprocessMutation.isPending}
