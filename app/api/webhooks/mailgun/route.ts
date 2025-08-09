@@ -247,6 +247,21 @@ async function createEmailDocument(
   emailMetadata: EmailMetadata
 ): Promise<string | null> {
   try {
+    // Get user's default schema (if any)
+    const { data: defaultSchema } = await supabaseAdmin
+      .from('client_schemas')
+      .select('id, name')
+      .eq('user_id', userId)
+      .eq('is_default', true)
+      .eq('is_active', true)
+      .single()
+    
+    if (defaultSchema) {
+      console.log(`📧 Using default schema "${defaultSchema.name}" for email from ${emailMetadata.sender}`)
+    } else {
+      console.log('📧 No default schema found, using legacy accounting fields for email')
+    }
+
     const { data, error } = await supabaseAdmin
       .from('documents')
       .insert({
@@ -255,7 +270,8 @@ async function createEmailDocument(
         file_url: fileUrl,
         status: 'pending',
         source: 'email',
-        email_metadata: emailMetadata
+        email_metadata: emailMetadata,
+        client_schema_id: defaultSchema?.id || null
       })
       .select('id')
       .single()
