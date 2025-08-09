@@ -41,6 +41,7 @@ export async function POST(request: NextRequest) {
     
     const formData = await request.formData()
     const file = formData.get('file') as File
+    const schemaId = formData.get('schemaId') as string | null
     
     if (!file) {
       console.error('❌ Upload API: No file provided')
@@ -53,7 +54,8 @@ export async function POST(request: NextRequest) {
     console.log('📄 Upload API: File details:', {
       name: file.name,
       size: file.size,
-      type: file.type
+      type: file.type,
+      schemaId: schemaId || 'legacy'
     })
 
     // Validate file type
@@ -211,7 +213,8 @@ export async function POST(request: NextRequest) {
           user_id: user.id,
           filename: file.name,
           file_url: urlData.publicUrl,
-          status: 'pending'
+          status: 'pending',
+          client_schema_id: schemaId || null // Add schema ID if provided
         })
         .select()
         .single()

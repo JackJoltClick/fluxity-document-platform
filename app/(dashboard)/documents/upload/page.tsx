@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -14,6 +14,8 @@ import { Card } from '@/src/components/design-system/layout/Card'
 import { Button } from '@/src/components/design-system/foundations/Button'
 import { FormField, EnhancedTextarea } from '@/src/components/design-system/forms/FormField'
 import { Alert } from '@/src/components/design-system/feedback/Alert'
+import { Select } from '@/src/components/design-system/forms/Select'
+import { LoadingState } from '@/src/components/design-system/feedback/LoadingState'
 
 const MAX_FILE_SIZE = 50 * 1024 * 1024 // 50MB
 const ALLOWED_TYPES = ['application/pdf', 'image/png', 'image/jpeg', 'image/jpg']
@@ -36,10 +38,19 @@ const fileSchema = z
 
 const uploadSchema = z.object({
   file: fileSchema,
-  description: z.string().optional()
+  description: z.string().optional(),
+  schemaId: z.string().optional()
 })
 
 type UploadForm = z.infer<typeof uploadSchema>
+
+interface ClientSchema {
+  id: string
+  name: string
+  description: string | null
+  columns: { name: string; description: string }[]
+  is_default: boolean
+}
 
 interface UploadProgress {
   isUploading: boolean
@@ -64,6 +75,9 @@ export default function UploadPage() {
     message: ''
   })
   const [success, setSuccess] = useState<UploadedFile | null>(null)
+  const [schemas, setSchemas] = useState<ClientSchema[]>([])
+  const [schemasLoading, setSchemasLoading] = useState(false)
+  const [selectedSchemaInfo, setSelectedSchemaInfo] = useState<ClientSchema | null>(null)
   const router = useRouter()
   const queryClient = useQueryClient()
   const { user } = useAuthStore()
@@ -83,6 +97,50 @@ export default function UploadPage() {
   // Watch the file input to get selected file for preview
   const watchedFile = watch('file')
   const selectedFile = watchedFile?.[0] || null
+  const selectedSchemaId = watch('schemaId')
+
+  // Fetch available schemas on mount
+  useEffect(() => {
+    const fetchSchemas = async () => {
+      try {
+        setSchemasLoading(true)
+        const { data, error } = await supabase
+          .from('client_schemas')
+          .select('*')
+          .eq('is_active', true)
+          .order('is_default', { ascending: false })
+          .order('name', { ascending: true })
+
+        if (error) {
+          console.error('Error fetching schemas:', error)
+          return
+        }
+
+        setSchemas(data || [])
+        
+        // Set default schema if available
+        const defaultSchema = data?.find(s => s.is_default)
+        if (defaultSchema) {
+          setValue('schemaId', defaultSchema.id)
+          setSelectedSchemaInfo(defaultSchema)
+        }
+      } catch (error) {
+        console.error('Failed to fetch schemas:', error)
+      } finally {
+        setSchemasLoading(false)
+      }
+    }
+    
+    fetchSchemas()
+  }, [setValue])
+
+  // Update selected schema info when selection changes
+  useEffect(() => {
+    if (selectedSchemaId && schemas.length > 0) {
+      const schema = schemas.find(s => s.id === selectedSchemaId)
+      setSelectedSchemaInfo(schema || null)
+    }
+  }, [selectedSchemaId, schemas])
 
   const handleDrag = useCallback((e: React.DragEvent) => {
     e.preventDefault()
@@ -121,6 +179,9 @@ export default function UploadPage() {
       formData.append('file', selectedFile!)
       if (data.description) {
         formData.append('description', data.description)
+      }
+      if (data.schemaId) {
+        formData.append('schemaId', data.schemaId)
       }
 
       setUploadProgress(prev => ({
@@ -213,6 +274,79 @@ export default function UploadPage() {
             placeholder="Drag and drop a file here"
             supportedFormats="PDF, PNG, JPEG"
           />
+
+          {/* Schema Selection */}
+          <FormField
+            id="schemaId"
+            label="Processing Schema"
+            helpText="Select which schema to use for extracting data from this document"
+            required={false}
+          >
+            {schemasLoading ? (
+              <div className="h-10 flex items-center">
+                <span className="text-sm text-gray-500">Loading schemas...</span>
+              </div>
+            ) : schemas.length > 0 ? (
+              <div className="space-y-3">
+                <select
+                  {...register('schemaId')}
+                  id="schemaId"
+                  className="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
+                  disabled={uploadProgress.isUploading}
+                >
+                  <option value="">Use Legacy 21 Accounting Fields</option>
+                  {schemas.map((schema) => (
+                    <option key={schema.id} value={schema.id}>
+                      {schema.name} {schema.is_default ? '(Default)' : ''}
+                    </option>
+                  ))}
+                </select>
+                
+                {/* Schema Info */}
+                {selectedSchemaInfo && (
+                  <div className="mt-2 p-3 bg-blue-50 rounded-md">
+                    <p className="text-sm font-medium text-blue-900">
+                      {selectedSchemaInfo.name}
+                    </p>
+                    {selectedSchemaInfo.description && (
+                      <p className="text-xs text-blue-700 mt-1">
+                        {selectedSchemaInfo.description}
+                      </p>
+                    )}
+                    <p className="text-xs text-blue-600 mt-2">
+                      {selectedSchemaInfo.columns.length} custom fields will be extracted
+                    </p>
+                  </div>
+                )}
+                
+                {!selectedSchemaId && (
+                  <div className="mt-2 p-3 bg-gray-50 rounded-md">
+                    <p className="text-sm font-medium text-gray-700">
+                      Legacy Processing Mode
+                    </p>
+                    <p className="text-xs text-gray-600 mt-1">
+                      Standard 21 accounting fields will be extracted (company code, GL account, cost center, etc.)
+                    </p>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="p-3 bg-yellow-50 rounded-md">
+                <p className="text-sm text-yellow-700">
+                  No schemas configured. Document will use legacy 21 accounting fields.
+                </p>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => router.push('/schemas')}
+                  className="mt-2"
+                >
+                  Create Schema
+                </Button>
+              </div>
+            )}
+          </FormField>
 
           <FormField
             id="description"
