@@ -5,6 +5,7 @@ import { StatusIndicator } from '../feedback/StatusIndicator'
 import { AccountingStatusBadge } from '@/src/components/accounting/AccountingStatusBadge'
 import { ConfidenceIndicator as AccountingConfidenceIndicator } from '@/src/components/accounting/ConfidenceIndicator'
 import { HybridConfidenceDisplay } from '../feedback/ConfidenceIndicator'
+import { Button } from '../foundations/Button'
 import { CheckCircleIcon, DocumentTextIcon, CpuChipIcon } from '@heroicons/react/24/outline'
 
 type AccountingStatus = 'needs_mapping' | 'ready_for_export' | 'exported'
@@ -255,27 +256,22 @@ export const DocumentCard = React.forwardRef<HTMLDivElement, DocumentCardProps>(
             )}
           </div>
           
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-3">
             {displayActions.map((action, index) => {
               if ('href' in action && action.href) {
                 return (
-                  <Link
-                    key={index}
-                    href={action.href}
-                    className={cn(
-                      'text-sm font-medium transition-colors',
-                      action.variant === 'primary' 
-                        ? 'text-blue-600 hover:text-blue-700'
-                        : 'text-gray-600 hover:text-gray-900'
-                    )}
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    {action.label}
+                  <Link key={index} href={action.href} onClick={(e) => e.stopPropagation()}>
+                    <Button
+                      variant={action.variant === 'primary' ? 'primary' : 'ghost'}
+                      size="sm"
+                    >
+                      {action.label}
+                    </Button>
                   </Link>
                 )
               } else {
                 return (
-                  <button
+                  <Button
                     key={index}
                     onClick={(e) => {
                       e.stopPropagation()
@@ -284,17 +280,11 @@ export const DocumentCard = React.forwardRef<HTMLDivElement, DocumentCardProps>(
                       }
                     }}
                     disabled={'disabled' in action ? action.disabled : false}
-                    className={cn(
-                      'text-sm font-medium transition-colors',
-                      ('disabled' in action && action.disabled)
-                        ? 'text-gray-400 cursor-not-allowed'
-                        : action.variant === 'primary' 
-                          ? 'text-blue-600 hover:text-blue-700'
-                          : 'text-gray-600 hover:text-gray-900'
-                    )}
+                    variant={action.variant === 'primary' ? 'primary' : 'ghost'}
+                    size="sm"
                   >
                     {action.label}
-                  </button>
+                  </Button>
                 )
               }
             })}

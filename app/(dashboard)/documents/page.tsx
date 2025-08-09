@@ -11,6 +11,7 @@ import { ErrorState } from '@/src/components/design-system/feedback/ErrorState'
 import { EmptyState } from '@/src/components/design-system/feedback/EmptyState'
 import { DocumentCard } from '@/src/components/design-system/dashboard/DocumentCard'
 import { BulkExportButton } from '@/src/components/export/BulkExportButton'
+import { Button } from '@/src/components/design-system/foundations/Button'
 import { 
   FunnelIcon,
   CheckIcon,
@@ -278,30 +279,34 @@ function DocumentsContent() {
                 <span className="text-sm text-gray-500">
                   {selectedDocuments.length} selected
                 </span>
-                <button
+                <Button
                   onClick={markSelectedAsExportReady}
                   disabled={bulkActionLoading}
-                  className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50"
+                  variant="success"
+                  size="sm"
+                  icon={<CheckIcon className="w-4 h-4" />}
                 >
-                  <CheckIcon className="w-4 h-4 mr-2" />
                   Mark Export Ready
-                </button>
-                <button
+                </Button>
+                <Button
                   onClick={markSelectedForReview}
                   disabled={bulkActionLoading}
-                  className="inline-flex items-center px-3 py-2 border border-gray-300 text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+                  variant="outline"
+                  size="sm"
+                  icon={<ExclamationTriangleIcon className="w-4 h-4" />}
                 >
-                  <ExclamationTriangleIcon className="w-4 h-4 mr-2" />
                   Requires Review
-                </button>
-                <button
+                </Button>
+                <Button
                   onClick={reprocessSelected}
                   disabled={bulkActionLoading}
-                  className="inline-flex items-center px-3 py-2 border border-gray-300 text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+                  variant="outline"
+                  size="sm"
+                  loading={bulkActionLoading}
+                  icon={<ArrowPathIcon className="w-4 h-4" />}
                 >
-                  <ArrowPathIcon className={`w-4 h-4 mr-2 ${bulkActionLoading ? 'animate-spin' : ''}`} />
                   Re-process
-                </button>
+                </Button>
               </div>
             )}
           </div>
@@ -353,16 +358,17 @@ function DocumentsContent() {
             </div>
 
             <div className="flex items-end">
-              <button
+              <Button
                 onClick={() => {
                   setAccountingStatusFilter('all')
                   setConfidenceFilter(0)
                   setShowExportReady(false)
                 }}
-                className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                variant="outline"
+                size="md"
               >
                 Clear Filters
-              </button>
+              </Button>
             </div>
           </div>
         </div>

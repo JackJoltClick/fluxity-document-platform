@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { ExcelExportService, ExcelExportOptions } from '@/src/lib/excel-export'
 import { useAuthStore } from '@/src/stores/auth.store'
 import { supabase } from '@/src/lib/supabase/client'
+import { Button } from '@/src/components/design-system/foundations/Button'
 import { 
   DocumentArrowDownIcon, 
   Cog6ToothIcon,
@@ -125,24 +126,6 @@ export function ExcelExportButton({
     return 'Export to Excel'
   }
 
-  const getButtonClasses = () => {
-    const baseClasses = 'inline-flex items-center font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors'
-    
-    const sizeClasses = {
-      sm: 'px-3 py-1.5 text-xs',
-      md: 'px-4 py-2 text-sm',
-      lg: 'px-6 py-3 text-base'
-    }
-    
-    const variantClasses = {
-      primary: 'text-white bg-blue-600 hover:bg-blue-700 focus:ring-blue-500 disabled:bg-blue-300',
-      secondary: 'text-white bg-gray-600 hover:bg-gray-700 focus:ring-gray-500 disabled:bg-gray-300',
-      outline: 'text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 focus:ring-blue-500 disabled:bg-gray-50 disabled:text-gray-400'
-    }
-    
-    return `${baseClasses} ${sizeClasses[size]} ${variantClasses[variant]} ${className}`
-  }
-
   if (exportDocuments.length === 0) {
     return null
   }
@@ -150,25 +133,30 @@ export function ExcelExportButton({
   return (
     <div className="relative inline-flex">
       {/* Main Export Button */}
-      <button
+      <Button
         onClick={() => handleExport()}
         disabled={disabled || exporting}
-        className={getButtonClasses()}
+        variant={variant}
+        size={size}
+        loading={exporting}
+        icon={<DocumentArrowDownIcon className="w-4 h-4" />}
+        className={className}
         title={`Export ${isSingleDocument ? 'document' : `${exportDocuments.length} documents`} to Excel`}
       >
-        <DocumentArrowDownIcon className="w-4 h-4 mr-2" />
         {getButtonText()}
-      </button>
+      </Button>
 
       {/* Options Toggle Button */}
-      <button
+      <Button
         onClick={() => setShowOptions(!showOptions)}
         disabled={disabled || exporting}
-        className={`ml-1 ${getButtonClasses().replace('rounded-md', 'rounded-l-none rounded-r-md')} border-l border-gray-400`}
+        variant={variant}
+        size={size}
+        className="ml-1 !rounded-l-none"
         title="Export options"
       >
         <Cog6ToothIcon className="w-4 h-4" />
-      </button>
+      </Button>
 
       {/* Options Dropdown */}
       {showOptions && (
@@ -230,22 +218,25 @@ export function ExcelExportButton({
             </div>
             
             <div className="flex justify-between items-center mt-4 pt-3 border-t border-gray-200">
-              <button
+              <Button
                 onClick={() => setShowOptions(false)}
-                className="text-sm text-gray-500 hover:text-gray-700"
+                variant="ghost"
+                size="sm"
               >
                 Cancel
-              </button>
+              </Button>
               
               <div className="flex space-x-2">
-                <button
+                <Button
                   onClick={() => handleExport(exportOptions)}
                   disabled={exporting}
-                  className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+                  variant="primary"
+                  size="sm"
+                  loading={exporting}
+                  icon={<CheckIcon className="w-4 h-4" />}
                 >
-                  <CheckIcon className="w-4 h-4 mr-1" />
                   Export with Options
-                </button>
+                </Button>
               </div>
             </div>
           </div>

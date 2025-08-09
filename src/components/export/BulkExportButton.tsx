@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { ExcelExportButton } from './ExcelExportButton'
+import { Button } from '@/src/components/design-system/foundations/Button'
 import { 
   DocumentArrowDownIcon, 
   CheckIcon, 
@@ -97,13 +98,15 @@ export function BulkExportButton({ documents, className = '' }: BulkExportButton
           
           {/* Bulk Select Option */}
           {exportableDocuments.length > readyDocuments.length && (
-            <button
+            <Button
               onClick={() => setShowBulkSelect(true)}
-              className="w-full inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              variant="outline"
+              size="lg"
+              fullWidth
+              icon={<CheckIcon className="w-4 h-4" />}
             >
-              <CheckIcon className="w-4 h-4 mr-2" />
               Select Documents to Export
-            </button>
+            </Button>
           )}
         </div>
       ) : (
@@ -116,23 +119,25 @@ export function BulkExportButton({ documents, className = '' }: BulkExportButton
                 {selectedDocuments.size} of {exportableDocuments.length} documents selected
               </p>
             </div>
-            <button
+            <Button
               onClick={() => setShowBulkSelect(false)}
-              className="text-gray-400 hover:text-gray-600"
+              variant="ghost"
+              size="sm"
             >
               <XMarkIcon className="w-5 h-5" />
-            </button>
+            </Button>
           </div>
           
           {/* Select All */}
           <div className="p-4 border-b border-gray-200">
-            <button
+            <Button
               onClick={handleSelectAll}
-              className="inline-flex items-center text-sm font-medium text-blue-600 hover:text-blue-700"
+              variant="ghost"
+              size="sm"
+              icon={<CheckIcon className="w-4 h-4" />}
             >
-              <CheckIcon className="w-4 h-4 mr-2" />
               {selectedDocuments.size === exportableDocuments.length ? 'Deselect All' : 'Select All'}
-            </button>
+            </Button>
           </div>
           
           {/* Document List */}
@@ -178,15 +183,16 @@ export function BulkExportButton({ documents, className = '' }: BulkExportButton
           {/* Export Actions */}
           <div className="p-4 border-t border-gray-200 bg-gray-50">
             <div className="flex justify-between items-center">
-              <button
+              <Button
                 onClick={() => {
                   setShowBulkSelect(false)
                   setSelectedDocuments(new Set())
                 }}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                variant="outline"
+                size="md"
               >
                 Cancel
-              </button>
+              </Button>
               
               {selectedDocuments.size > 0 && (
                 <ExcelExportButton
