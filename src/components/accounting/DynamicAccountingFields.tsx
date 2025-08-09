@@ -155,6 +155,18 @@ export function DynamicAccountingFields({
               const fieldData = accountingFields[field.key] || { value: null, confidence: 0 }
               const documentValue = documentData[field.key]
               
+              // DEBUG: Log what we're getting from Lambda
+              if (field.key === 'invoicing_party') {
+                console.log('🔍 DEBUG invoicing_party:', {
+                  fieldKey: field.key,
+                  accountingFields: accountingFields,
+                  fieldData: fieldData,
+                  fieldDataValue: fieldData.value,
+                  fieldDataConfidence: fieldData.confidence,
+                  documentValue: documentValue
+                })
+              }
+              
               // Use document value if extraction doesn't have it
               const value = fieldData.value !== null ? fieldData.value : documentValue
               const confidence = fieldData.confidence || 0.5
