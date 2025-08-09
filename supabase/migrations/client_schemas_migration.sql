@@ -14,8 +14,7 @@ CREATE TABLE IF NOT EXISTS client_schemas (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     
     -- Constraints
-    CONSTRAINT unique_default_schema_per_user UNIQUE NULLS NOT DISTINCT (user_id, is_default) 
-    DEFERRABLE INITIALLY DEFERRED,
+    -- Note: unique constraint for default schema per user is handled by partial index below
     CONSTRAINT valid_columns_structure CHECK (
         jsonb_typeof(columns) = 'array' AND
         jsonb_array_length(columns) >= 1 AND
@@ -29,9 +28,12 @@ ADD COLUMN IF NOT EXISTS client_schema_id UUID REFERENCES client_schemas(id) ON 
 
 -- Create indexes for performance
 CREATE INDEX IF NOT EXISTS idx_client_schemas_user_id ON client_schemas(user_id);
-CREATE INDEX IF NOT EXISTS idx_client_schemas_is_default ON client_schemas(user_id, is_default) WHERE is_default = true;
 CREATE INDEX IF NOT EXISTS idx_client_schemas_is_active ON client_schemas(is_active) WHERE is_active = true;
 CREATE INDEX IF NOT EXISTS idx_documents_client_schema ON documents(client_schema_id);
+
+-- Create unique partial index to ensure only one default schema per user
+CREATE UNIQUE INDEX IF NOT EXISTS idx_client_schemas_unique_default 
+ON client_schemas(user_id) WHERE is_default = true;
 
 -- Enable RLS (Row Level Security)
 ALTER TABLE client_schemas ENABLE ROW LEVEL SECURITY;
@@ -137,28 +139,26 @@ CREATE TRIGGER prevent_schema_deletion_if_used
     EXECUTE FUNCTION check_schema_usage();
 
 -- Insert sample schemas for 5 different client types
-INSERT INTO client_schemas (user_id, name, description, columns, is_default) VALUES
-
--- Sample User ID (replace with actual user IDs in production)
-(
-    (SELECT id FROM auth.users LIMIT 1),
-    'Basic Accounting Schema',
-    'Standard accounting fields for general invoice processing',
-    '[
+-- Note: Only insert if we have at least one user in the system
+INSERT INTO client_schemas (user_id, name, description, columns, is_default) 
+SELECT 
+    u.id as user_id,
+    s.name,
+    s.description, 
+    s.columns,
+    s.is_default
+FROM auth.users u
+CROSS JOIN (
+    VALUES 
+    ('Basic Accounting Schema', 'Standard accounting fields for general invoice processing', '[
         {"name": "Vendor Name", "description": "Name of the supplier or vendor"},
         {"name": "Invoice Number", "description": "Unique invoice identifier"},
         {"name": "Invoice Date", "description": "Date when invoice was issued"},
         {"name": "Total Amount", "description": "Final amount including taxes"},
         {"name": "Currency", "description": "Currency code (USD, EUR, etc.)"}
-    ]'::jsonb,
-    true
-),
-
-(
-    (SELECT id FROM auth.users LIMIT 1),
-    'Legal Services Schema',
-    'Schema for law firms and legal service providers',
-    '[
+    ]'::jsonb, true),
+    
+    ('Legal Services Schema', 'Schema for law firms and legal service providers', '[
         {"name": "Law Firm", "description": "Name of the legal service provider"},
         {"name": "Matter Number", "description": "Case or matter reference number"},
         {"name": "Service Date", "description": "Date services were provided"},
@@ -167,15 +167,9 @@ INSERT INTO client_schemas (user_id, name, description, columns, is_default) VAL
         {"name": "Billable Hours", "description": "Number of hours billed"},
         {"name": "Hourly Rate", "description": "Rate per hour for services"},
         {"name": "Total Fees", "description": "Total amount for legal services"}
-    ]'::jsonb,
-    false
-),
-
-(
-    (SELECT id FROM auth.users LIMIT 1),
-    'Logistics & Shipping Schema',
-    'Schema for logistics companies and shipping providers',
-    '[
+    ]'::jsonb, false),
+    
+    ('Logistics & Shipping Schema', 'Schema for logistics companies and shipping providers', '[
         {"name": "Carrier Name", "description": "Name of shipping/logistics company"},
         {"name": "Tracking Number", "description": "Package or shipment tracking number"},
         {"name": "Origin", "description": "Shipping origin location"},
@@ -185,15 +179,9 @@ INSERT INTO client_schemas (user_id, name, description, columns, is_default) VAL
         {"name": "Weight", "description": "Package weight"},
         {"name": "Shipping Cost", "description": "Cost of shipping service"},
         {"name": "Service Type", "description": "Type of shipping service (overnight, ground, etc.)"}
-    ]'::jsonb,
-    false
-),
-
-(
-    (SELECT id FROM auth.users LIMIT 1),
-    'Retail Purchase Schema',
-    'Schema for retail and e-commerce purchases',
-    '[
+    ]'::jsonb, false),
+    
+    ('Retail Purchase Schema', 'Schema for retail and e-commerce purchases', '[
         {"name": "Store Name", "description": "Name of retail store or vendor"},
         {"name": "Receipt Number", "description": "Receipt or transaction number"},
         {"name": "Purchase Date", "description": "Date of purchase"},
@@ -205,15 +193,9 @@ INSERT INTO client_schemas (user_id, name, description, columns, is_default) VAL
         {"name": "Tax Amount", "description": "Sales tax amount"},
         {"name": "Total Amount", "description": "Final total amount"},
         {"name": "Payment Method", "description": "Method of payment used"}
-    ]'::jsonb,
-    false
-),
-
-(
-    (SELECT id FROM auth.users LIMIT 1),
-    'Manufacturing Schema',
-    'Schema for manufacturing and industrial purchases',
-    '[
+    ]'::jsonb, false),
+    
+    ('Manufacturing Schema', 'Schema for manufacturing and industrial purchases', '[
         {"name": "Supplier Name", "description": "Name of parts/materials supplier"},
         {"name": "Purchase Order", "description": "PO number for the order"},
         {"name": "Part Number", "description": "Manufacturer part number"},
@@ -225,9 +207,9 @@ INSERT INTO client_schemas (user_id, name, description, columns, is_default) VAL
         {"name": "Department Code", "description": "Department or cost center code"},
         {"name": "Project Code", "description": "Project or job number"},
         {"name": "GL Account", "description": "General ledger account code"}
-    ]'::jsonb,
-    false
-);
+    ]'::jsonb, false)
+) AS s(name, description, columns, is_default)
+WHERE u.id IN (SELECT id FROM auth.users LIMIT 1);
 
 -- Grant permissions
 GRANT EXECUTE ON FUNCTION validate_schema_columns(JSONB) TO authenticated;
