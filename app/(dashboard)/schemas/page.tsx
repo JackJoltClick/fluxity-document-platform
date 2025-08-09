@@ -197,10 +197,22 @@ export default function SchemasPage() {
       setCreating(true)
       setError(null)
 
+      // Check if user is authenticated
+      const { data: { user } } = await supabase.auth.getUser()
+      console.log('Current user:', user)
+      
+      if (!user) {
+        throw new Error('User not authenticated. Please log in.')
+      }
+
       const columnsData = formData.columns.map(col => ({
         name: col.name.trim(),
         description: col.description.trim()
       }))
+
+      if (columnsData.length === 0) {
+        throw new Error('At least one column is required')
+      }
 
       const payload = {
         name: formData.name.trim(),
@@ -208,6 +220,8 @@ export default function SchemasPage() {
         columns: columnsData, // Send as object, not string
         is_default: schemas.length === 0 // First schema becomes default
       }
+      
+      console.log('About to submit payload:', payload)
 
       let result
       if (editingSchema) {
@@ -238,6 +252,8 @@ export default function SchemasPage() {
       await fetchSchemas()
     } catch (err) {
       console.error('Error saving schema:', err)
+      console.error('Payload was:', payload)
+      console.error('Full error:', JSON.stringify(err, null, 2))
       setError(err instanceof Error ? err.message : 'Failed to save schema')
     } finally {
       setCreating(false)
