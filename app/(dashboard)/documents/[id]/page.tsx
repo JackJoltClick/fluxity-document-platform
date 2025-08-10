@@ -349,6 +349,37 @@ function DocumentDetailsContent() {
         />
       )}
 
+      {/* Multi-Model Extraction Info (if available) */}
+      {document.status === 'completed' && document.extraction_models && document.extraction_models.length > 0 && (
+        <div className="bg-blue-50 rounded-lg border border-blue-200 p-4">
+          <div className="flex items-start">
+            <div className="flex-shrink-0">
+              <CogIcon className="h-5 w-5 text-blue-400" aria-hidden="true" />
+            </div>
+            <div className="ml-3 flex-1">
+              <h3 className="text-sm font-medium text-blue-800">
+                Multi-Model Extraction
+              </h3>
+              <div className="mt-2 text-sm text-blue-700">
+                <p>
+                  Extracted using: {document.extraction_models.join(' + ')}
+                  {document.overall_confidence && (
+                    <span className="ml-2">
+                      • Overall confidence: {(document.overall_confidence * 100).toFixed(1)}%
+                    </span>
+                  )}
+                </p>
+                {document.validation_errors && document.validation_errors.length > 0 && (
+                  <p className="mt-1 text-orange-700">
+                    ⚠️ {document.validation_errors.length} validation {document.validation_errors.length === 1 ? 'issue' : 'issues'} found
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Accounting Overview */}
       {document.status === 'completed' && (
         <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
@@ -359,7 +390,7 @@ function DocumentDetailsContent() {
                 <p className="mt-1 text-sm text-gray-500">
                   {isAccountingReady 
                     ? 'This document is ready for export to your accounting system'
-                    : needsReview
+                    : needsReview || document.requires_review
                     ? 'This document requires review before export'
                     : 'Accounting fields are being processed'
                   }
@@ -367,7 +398,7 @@ function DocumentDetailsContent() {
               </div>
               <div className="flex items-center space-x-4">
                 <ConfidenceIndicator 
-                  confidence={overallConfidence} 
+                  confidence={document.overall_confidence || overallConfidence} 
                   variant="bar"
                   className="w-48"
                 />
