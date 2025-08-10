@@ -47,6 +47,22 @@ export interface DocumentWithAccounting {
   profit_center?: string | null
   internal_order?: string | null
   wbs_element?: string | null
+  
+  // Multi-model extraction fields
+  extraction_models?: string[] | null
+  model_confidences?: Record<string, number> | null
+  validation_errors?: string[] | null
+  review_notes?: string | null
+  reviewed_at?: string | null
+  reviewed_by?: string | null
+  extraction_consensus?: any | null
+  preprocessing_applied?: boolean | null
+  preprocessing_improvements?: string[] | null
+  textract_result?: any | null
+  openai_result?: any | null
+  claude_result?: any | null
+  claude_confidence?: number | null
+  overall_confidence?: number | null
 }
 
 export function useDocument(documentId: string) {
