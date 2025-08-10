@@ -37,7 +37,7 @@ export default function DocumentReviewQueue() {
 
   useEffect(() => {
     fetchDocumentsForReview()
-  }, [])
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchDocumentsForReview = async () => {
     try {
@@ -147,11 +147,16 @@ export default function DocumentReviewQueue() {
         <ErrorState
           title="Failed to load review queue"
           message={error}
-          primaryAction={{
-            label: 'Try Again',
-            onClick: fetchDocumentsForReview
-          }}
         />
+        <div className="mt-4 flex justify-center">
+          <Button
+            onClick={fetchDocumentsForReview}
+            variant="primary"
+            size="md"
+          >
+            Try Again
+          </Button>
+        </div>
       </div>
     )
   }
@@ -170,11 +175,16 @@ export default function DocumentReviewQueue() {
         <EmptyState
           title="No documents need review"
           description="All documents have been reviewed or have high confidence scores"
-          primaryAction={{
-            label: 'Refresh Queue',
-            onClick: fetchDocumentsForReview
-          }}
         />
+        <div className="mt-4 flex justify-center">
+          <Button
+            onClick={fetchDocumentsForReview}
+            variant="outline"
+            size="md"
+          >
+            Refresh Queue
+          </Button>
+        </div>
       </div>
     )
   }
@@ -218,11 +228,16 @@ export default function DocumentReviewQueue() {
           label: `${documents.length} pending`,
           animated: true
         }}
-        primaryAction={{
-          label: 'Refresh Queue',
-          onClick: fetchDocumentsForReview
-        }}
       />
+      <div className="mb-4 flex justify-end">
+        <Button
+          onClick={fetchDocumentsForReview}
+          variant="outline"
+          size="sm"
+        >
+          Refresh Queue
+        </Button>
+      </div>
 
       {currentDoc && (
         <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
