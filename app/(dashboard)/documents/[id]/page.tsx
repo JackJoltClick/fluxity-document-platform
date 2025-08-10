@@ -181,15 +181,17 @@ function DocumentDetailsContent() {
     
     // Fallback: calculate from individual field confidences
     const extractedData = document.extracted_data as any
-    const fields = Object.keys(extractedData).filter(key => 
-      typeof extractedData[key] === 'object' && 
-      'confidence' in extractedData[key]
+    // For multi-model extraction, fields are nested under accounting_fields
+    const fieldsSource = extractedData.accounting_fields || extractedData
+    const fields = Object.keys(fieldsSource).filter(key => 
+      typeof fieldsSource[key] === 'object' && 
+      'confidence' in fieldsSource[key]
     )
     
     if (fields.length === 0) return 0
     
     const totalConfidence = fields.reduce((sum, key) => {
-      return sum + (extractedData[key].confidence || 0)
+      return sum + (fieldsSource[key].confidence || 0)
     }, 0)
     
     return totalConfidence / fields.length
@@ -199,7 +201,9 @@ function DocumentDetailsContent() {
   const getFieldConfidence = (fieldKey: string): number => {
     if (!document?.extracted_data) return 0
     const extractedData = document.extracted_data as any
-    return extractedData[fieldKey]?.confidence || 0.5
+    // For multi-model extraction, fields are nested under accounting_fields
+    const fieldsSource = extractedData.accounting_fields || extractedData
+    return fieldsSource[fieldKey]?.confidence || 0.5
   }
 
   if (isLoading) {
