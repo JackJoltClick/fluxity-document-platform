@@ -262,7 +262,15 @@ export function DynamicAccountingFields({
         >
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {group.fields.map((field) => {
-              const fieldData = accountingFields[field.key] || { value: null, confidence: 0 }
+              // Handle both nested and direct value formats
+              let fieldData = accountingFields[field.key] || { value: null, confidence: 0 }
+              
+              // If fieldData is already an object with value/confidence, use it as is
+              // If it's a direct value, wrap it in the expected format
+              if (typeof fieldData !== 'object' || !('value' in fieldData)) {
+                fieldData = { value: fieldData, confidence: 0.5 }
+              }
+              
               const documentValue = documentData[field.key]
               
               // DEBUG: Log what we're getting from Lambda
@@ -270,6 +278,7 @@ export function DynamicAccountingFields({
                 console.log('🔍 DEBUG invoicing_party:', {
                   fieldKey: field.key,
                   accountingFields: accountingFields,
+                  rawFieldData: accountingFields[field.key],
                   fieldData: fieldData,
                   fieldDataValue: fieldData.value,
                   fieldDataConfidence: fieldData.confidence,
@@ -278,7 +287,13 @@ export function DynamicAccountingFields({
               }
               
               // Use document value if extraction doesn't have it
-              const value = fieldData.value !== null ? fieldData.value : documentValue
+              let value = fieldData.value !== undefined ? fieldData.value : documentValue
+              
+              // If value is still an object (shouldn't happen but safeguard), extract its value
+              if (value && typeof value === 'object' && 'value' in value) {
+                value = value.value
+              }
+              
               const confidence = fieldData.confidence || 0.5
               
               // Special handling for selectors
