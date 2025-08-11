@@ -89,6 +89,18 @@ function DocumentDetailsContent() {
   const isUsingDynamicSchema = !!(document?.client_schema_id && clientSchema)
   const hasClientFields = !!(document?.extracted_data?.client_fields)
   
+  // Debug logging to see what data we have
+  console.log('🔍 Document Data Debug:', {
+    documentId: document?.id,
+    hasExtractedData: !!document?.extracted_data,
+    extractedDataKeys: document?.extracted_data ? Object.keys(document.extracted_data) : [],
+    hasAccountingFields: !!document?.extracted_data?.accounting_fields,
+    accountingFieldsKeys: document?.extracted_data?.accounting_fields ? Object.keys(document.extracted_data.accounting_fields) : [],
+    sampleField: document?.extracted_data?.accounting_fields?.invoicing_party,
+    directInvoicingParty: document?.invoicing_party,
+    extractionMethod: document?.extraction_method
+  })
+  
   // Get fields data based on schema type
   const fieldsData = isUsingDynamicSchema && hasClientFields 
     ? document?.extracted_data?.client_fields || {}
