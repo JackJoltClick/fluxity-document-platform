@@ -77,7 +77,16 @@ export const AccountingField: React.FC<AccountingFieldProps> = ({
     }
   }
 
-  const displayValue = value !== null && value !== undefined ? value.toString() : 'Not mapped'
+  // Handle objects being passed as values (for debugging)
+  let displayValue = 'Not mapped'
+  if (value !== null && value !== undefined) {
+    if (typeof value === 'object') {
+      // If it's an object, try to get the actual value or stringify it
+      displayValue = value.value !== undefined ? String(value.value) : JSON.stringify(value)
+    } else {
+      displayValue = String(value)
+    }
+  }
   const isEmpty = !value
 
   const renderEditControl = () => {

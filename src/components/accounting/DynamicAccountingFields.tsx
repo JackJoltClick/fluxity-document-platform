@@ -262,39 +262,33 @@ export function DynamicAccountingFields({
         >
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {group.fields.map((field) => {
-              // Handle both nested and direct value formats
-              let fieldData = accountingFields[field.key] || { value: null, confidence: 0 }
+              // SIMPLIFIED: Just get the damn value
+              let value = null;
               
-              // If fieldData is already an object with value/confidence, use it as is
-              // If it's a direct value, wrap it in the expected format
-              if (typeof fieldData !== 'object' || !('value' in fieldData)) {
-                fieldData = { value: fieldData, confidence: 0.5 }
+              // Try different places the value might be
+              if (accountingFields[field.key]) {
+                const fieldData = accountingFields[field.key];
+                if (typeof fieldData === 'object' && fieldData.value !== undefined) {
+                  value = fieldData.value;
+                } else if (typeof fieldData === 'string' || typeof fieldData === 'number') {
+                  value = fieldData;
+                } else {
+                  value = JSON.stringify(fieldData); // Show what we're actually getting
+                }
+              } else if (documentData[field.key] !== undefined) {
+                value = documentData[field.key];
               }
               
-              const documentValue = documentData[field.key]
-              
-              // DEBUG: Log what we're getting from Lambda
-              if (field.key === 'invoicing_party') {
-                console.log('🔍 DEBUG invoicing_party:', {
-                  fieldKey: field.key,
-                  accountingFields: accountingFields,
-                  rawFieldData: accountingFields[field.key],
-                  fieldData: fieldData,
-                  fieldDataValue: fieldData.value,
-                  fieldDataConfidence: fieldData.confidence,
-                  documentValue: documentValue
-                })
+              // Debug log to see what the hell we're getting
+              if (field.key === 'invoicing_party' || field.key === 'document_date') {
+                console.log(`🔍 ${field.key}:`, {
+                  raw: accountingFields[field.key],
+                  documentValue: documentData[field.key],
+                  finalValue: value
+                });
               }
               
-              // Use document value if extraction doesn't have it
-              let value = fieldData.value !== undefined ? fieldData.value : documentValue
-              
-              // If value is still an object (shouldn't happen but safeguard), extract its value
-              if (value && typeof value === 'object' && 'value' in value) {
-                value = value.value
-              }
-              
-              const confidence = fieldData.confidence || 0.5
+              const confidence = 0.5 // Fuck it, just use 50% for now
               
               // Special handling for selectors
               if (field.component === 'company-selector') {
