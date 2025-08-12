@@ -514,6 +514,54 @@ function DocumentDetailsContent() {
         </div>
       )}
 
+      {/* Full Text Section - Full Width */}
+      {document.status === 'completed' && document.full_text && (
+        <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+          <div className="px-6 py-4 border-b border-gray-100 bg-gray-50">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-medium text-gray-900 flex items-center">
+                <DocumentTextIcon className="w-5 h-5 mr-2 text-blue-600" />
+                Extracted Document Text
+              </h3>
+              <span className="text-sm text-gray-500">
+                {document.full_text.length} characters
+              </span>
+            </div>
+          </div>
+          <div className="p-8">
+            <div className="prose prose-sm max-w-none">
+              <div className="bg-gray-50 rounded-lg p-6 border border-gray-200">
+                <div className="text-sm leading-relaxed text-gray-700 whitespace-pre-line font-sans">
+                  {document.full_text.split('\n').map((line, index) => (
+                    <div key={index} className={`${line.trim() === '' ? 'h-4' : 'mb-1'}`}>
+                      {line.trim() !== '' && (
+                        <span className="block hover:bg-yellow-50 px-2 -mx-2 py-0.5 rounded transition-colors">
+                          {line}
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+            <div className="mt-4 flex items-center justify-between">
+              <button
+                onClick={() => navigator.clipboard.writeText(document.full_text)}
+                className="inline-flex items-center px-3 py-1.5 border border-gray-300 text-xs font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              >
+                <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                </svg>
+                Copy Text
+              </button>
+              <span className="text-xs text-gray-500">
+                Extracted with {document.extraction_method || 'AI Processing'}
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Two-Column Layout: Document Preview + Accounting Fields */}
       {document.status === 'completed' && (
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
@@ -574,25 +622,6 @@ function DocumentDetailsContent() {
                 </div>
               </div>
             </div>
-
-            {/* Full Text Section */}
-            {document.full_text && (
-              <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
-                <div className="px-6 py-4 border-b border-gray-100">
-                  <h3 className="text-lg font-medium text-gray-900 flex items-center">
-                    <DocumentTextIcon className="w-5 h-5 mr-2" />
-                    Extracted Text
-                  </h3>
-                </div>
-                <div className="p-6">
-                  <div className="max-h-96 overflow-y-auto">
-                    <pre className="text-sm text-gray-700 whitespace-pre-wrap font-mono">
-                      {document.full_text}
-                    </pre>
-                  </div>
-                </div>
-              </div>
-            )}
 
             {/* Vendor Matching Section */}
             {document.extracted_data && (
