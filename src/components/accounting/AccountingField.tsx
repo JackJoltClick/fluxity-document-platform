@@ -82,7 +82,8 @@ export const AccountingField: React.FC<AccountingFieldProps> = ({
   if (value !== null && value !== undefined) {
     if (typeof value === 'object') {
       // If it's an object, try to get the actual value or stringify it
-      displayValue = value.value !== undefined ? String(value.value) : JSON.stringify(value)
+      const objValue = value as any
+      displayValue = objValue.value !== undefined ? String(objValue.value) : JSON.stringify(value)
     } else {
       displayValue = String(value)
     }
