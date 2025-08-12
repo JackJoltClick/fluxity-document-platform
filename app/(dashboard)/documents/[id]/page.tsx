@@ -297,7 +297,10 @@ function DocumentDetailsContent() {
     requires_review: document.requires_review,
     isAccountingReady,
     needsReview,
-    overallConfidence
+    overallConfidence,
+    hasFullText: !!document.full_text,
+    fullTextLength: document.full_text?.length || 0,
+    fullTextPreview: document.full_text?.substring(0, 100) || 'No full text'
   })
 
   return (

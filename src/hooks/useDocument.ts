@@ -94,6 +94,11 @@ export function useDocument(documentId: string) {
       
       const result = await response.json()
       console.log('📄 Document API response:', result)
+      console.log('📝 Full text check:', {
+        hasFullText: !!result.document?.full_text,
+        fullTextLength: result.document?.full_text?.length || 0,
+        fullTextPreview: result.document?.full_text?.substring(0, 100) || 'No full text in response'
+      })
       
       // The API returns { success: true, document: {...} }, so extract the document
       if (result.success && result.document) {
