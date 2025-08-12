@@ -572,6 +572,25 @@ function DocumentDetailsContent() {
               </div>
             </div>
 
+            {/* Full Text Section */}
+            {document.full_text && (
+              <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+                <div className="px-6 py-4 border-b border-gray-100">
+                  <h3 className="text-lg font-medium text-gray-900 flex items-center">
+                    <DocumentTextIcon className="w-5 h-5 mr-2" />
+                    Extracted Text
+                  </h3>
+                </div>
+                <div className="p-6">
+                  <div className="max-h-96 overflow-y-auto">
+                    <pre className="text-sm text-gray-700 whitespace-pre-wrap font-mono">
+                      {document.full_text}
+                    </pre>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Vendor Matching Section */}
             {document.extracted_data && (
               <VendorMatchingSection 

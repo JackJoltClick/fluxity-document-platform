@@ -184,6 +184,9 @@ export interface Document {
   claude_result?: any | null
   claude_confidence?: number | null
   overall_confidence?: number | null
+  
+  // Full text extraction
+  full_text?: string | null
 }
 
 export interface DocumentsResponse {
