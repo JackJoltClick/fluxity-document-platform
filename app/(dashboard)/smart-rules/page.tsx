@@ -1,8 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Button } from '@/src/components/design-system/foundations/Button'
+import { supabase } from '@/src/lib/supabase/client'
 
 interface SmartRule {
   id: string
@@ -64,39 +65,75 @@ export default function SmartRulesPage() {
   const [selectedCategory, setSelectedCategory] = useState<string>('gl_assignment')
   const [ruleText, setRuleText] = useState('')
   const [showExamples, setShowExamples] = useState(false)
+  const [successMessage, setSuccessMessage] = useState('')
+  const [authToken, setAuthToken] = useState<string | null>(null)
   const queryClient = useQueryClient()
+
+  // Get auth token on mount
+  useEffect(() => {
+    const getToken = async () => {
+      const { data: { session } } = await supabase.auth.getSession()
+      setAuthToken(session?.access_token || null)
+    }
+    getToken()
+  }, [])
 
   const { data: rules = [], isLoading } = useQuery({
     queryKey: ['smart-rules'],
     queryFn: async () => {
-      const response = await fetch('/api/smart-rules')
+      if (!authToken) throw new Error('Not authenticated')
+      
+      const response = await fetch('/api/smart-rules', {
+        headers: {
+          'Authorization': `Bearer ${authToken}`
+        }
+      })
       if (!response.ok) throw new Error('Failed to fetch smart rules')
       return response.json()
-    }
+    },
+    enabled: !!authToken
   })
 
   const createMutation = useMutation({
     mutationFn: async (rule: { rule_text: string; category: string }) => {
+      if (!authToken) throw new Error('Not authenticated')
+      
       const response = await fetch('/api/smart-rules', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`
+        },
         body: JSON.stringify(rule)
       })
       if (!response.ok) {
         const error = await response.json()
-        throw new Error(error.message || 'Failed to create rule')
+        throw new Error(error.error || error.message || 'Failed to create rule')
       }
       return response.json()
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['smart-rules'] })
       setRuleText('')
+      setSuccessMessage('Rule added successfully!')
+      setTimeout(() => setSuccessMessage(''), 3000)
+    },
+    onError: (error: Error) => {
+      console.error('Error creating rule:', error)
+      alert(`Failed to create rule: ${error.message}`)
     }
   })
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const response = await fetch(`/api/smart-rules/${id}`, { method: 'DELETE' })
+      if (!authToken) throw new Error('Not authenticated')
+      
+      const response = await fetch(`/api/smart-rules/${id}`, { 
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${authToken}`
+        }
+      })
       if (!response.ok) throw new Error('Failed to delete rule')
       return response.json()
     },
@@ -107,9 +144,14 @@ export default function SmartRulesPage() {
 
   const toggleRuleMutation = useMutation({
     mutationFn: async ({ id, is_active }: { id: string; is_active: boolean }) => {
+      if (!authToken) throw new Error('Not authenticated')
+      
       const response = await fetch(`/api/smart-rules/${id}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`
+        },
         body: JSON.stringify({ is_active })
       })
       if (!response.ok) throw new Error('Failed to update rule')
@@ -122,7 +164,12 @@ export default function SmartRulesPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    if (!ruleText.trim()) return
+    console.log('Submitting rule:', { ruleText, selectedCategory })
+    
+    if (!ruleText.trim()) {
+      alert('Please enter a rule description')
+      return
+    }
     
     createMutation.mutate({
       rule_text: ruleText.trim(),
@@ -202,6 +249,13 @@ export default function SmartRulesPage() {
           )}
         </div>
 
+        {/* Success Message */}
+        {successMessage && (
+          <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-green-700 text-sm">
+            ✓ {successMessage}
+          </div>
+        )}
+
         {/* Rule Input */}
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
@@ -225,7 +279,7 @@ export default function SmartRulesPage() {
               disabled={!ruleText.trim() || createMutation.isPending}
               loading={createMutation.isPending}
             >
-              Add Rule
+              {createMutation.isPending ? 'Adding...' : 'Add Rule'}
             </Button>
           </div>
         </form>

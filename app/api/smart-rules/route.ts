@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
+import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 
 // Security: Rate limiting constants
@@ -38,14 +38,42 @@ function checkRateLimit(userId: string): boolean {
   return true
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const supabase = createRouteHandlerClient({ cookies })
+    console.log('📋 Smart Rules API: GET request')
     
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) {
+    // Get auth token from header
+    const authHeader = request.headers.get('Authorization')
+    const token = authHeader?.replace('Bearer ', '')
+    
+    if (!token) {
+      console.log('❌ Smart Rules API: No auth token')
+      return NextResponse.json({ error: 'No auth token provided' }, { status: 401 })
+    }
+
+    // Create Supabase client with the token
+    const cookieStore = cookies()
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          get(name: string) {
+            return cookieStore.get(name)?.value
+          },
+        },
+      }
+    )
+
+    // Set the auth token
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token)
+    
+    if (authError || !user) {
+      console.log('❌ Smart Rules API: Auth failed', authError)
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+
+    console.log('✅ Smart Rules API: User authenticated:', user.id)
 
     // Security: Rate limiting
     if (!checkRateLimit(user.id)) {
@@ -60,25 +88,54 @@ export async function GET() {
       .limit(100) // Security: Limit results to prevent data dumps
 
     if (error) {
-      console.error('Error fetching smart rules:', error)
+      console.error('❌ Smart Rules API: Database error:', error)
       return NextResponse.json({ error: 'Failed to fetch smart rules' }, { status: 500 })
     }
 
+    console.log(`✅ Smart Rules API: Found ${data?.length || 0} rules`)
     return NextResponse.json(data || [])
   } catch (error) {
-    console.error('Error in GET /api/smart-rules:', error)
+    console.error('❌ Smart Rules API: Unexpected error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createRouteHandlerClient({ cookies })
+    console.log('📋 Smart Rules API: POST request')
     
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) {
+    // Get auth token from header
+    const authHeader = request.headers.get('Authorization')
+    const token = authHeader?.replace('Bearer ', '')
+    
+    if (!token) {
+      console.log('❌ Smart Rules API: No auth token')
+      return NextResponse.json({ error: 'No auth token provided' }, { status: 401 })
+    }
+
+    // Create Supabase client with the token
+    const cookieStore = cookies()
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          get(name: string) {
+            return cookieStore.get(name)?.value
+          },
+        },
+      }
+    )
+
+    // Set the auth token
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token)
+    
+    if (authError || !user) {
+      console.log('❌ Smart Rules API: Auth failed', authError)
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+
+    console.log('✅ Smart Rules API: User authenticated:', user.id)
 
     // Security: Rate limiting
     if (!checkRateLimit(user.id)) {
@@ -97,6 +154,8 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json()
     const { rule_text, category } = body
+
+    console.log('📋 Smart Rules API: Creating rule:', { category, rule_text: rule_text?.substring(0, 50) })
 
     // Validate input
     if (!rule_text || !category) {
@@ -135,13 +194,14 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (error) {
-      console.error('Error creating smart rule:', error)
+      console.error('❌ Smart Rules API: Database error:', error)
       return NextResponse.json({ error: 'Failed to create smart rule' }, { status: 500 })
     }
 
+    console.log('✅ Smart Rules API: Rule created successfully')
     return NextResponse.json(data)
   } catch (error) {
-    console.error('Error in POST /api/smart-rules:', error)
+    console.error('❌ Smart Rules API: Unexpected error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
