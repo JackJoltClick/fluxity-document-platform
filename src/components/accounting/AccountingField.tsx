@@ -78,7 +78,7 @@ export const AccountingField: React.FC<AccountingFieldProps> = ({
   }
 
   // Handle objects being passed as values (for debugging)
-  let displayValue = 'Not mapped'
+  let displayValue = 'List to match'
   if (value !== null && value !== undefined) {
     if (typeof value === 'object') {
       // If it's an object, try to get the actual value or stringify it
