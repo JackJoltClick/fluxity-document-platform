@@ -261,7 +261,7 @@ export default function SmartRulesPage() {
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    {categoryRules.map((rule) => (
+                    {categoryRules.map((rule: SmartRule) => (
                       <div
                         key={rule.id}
                         className={`p-4 rounded-lg border-2 transition-all ${
