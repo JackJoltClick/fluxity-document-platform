@@ -37,15 +37,33 @@ export async function PATCH(
     }
 
     const body = await request.json()
-    const { is_active } = body
+    const { is_active, rule_text } = body
 
-    if (typeof is_active !== 'boolean') {
-      return NextResponse.json({ error: 'is_active must be a boolean' }, { status: 400 })
+    // Build update object based on what's provided
+    const updateData: any = {}
+    
+    if (typeof is_active === 'boolean') {
+      updateData.is_active = is_active
+    }
+    
+    if (rule_text !== undefined) {
+      // Validate rule_text
+      if (typeof rule_text !== 'string' || rule_text.trim().length === 0) {
+        return NextResponse.json({ error: 'rule_text must be a non-empty string' }, { status: 400 })
+      }
+      if (rule_text.length > 500) {
+        return NextResponse.json({ error: 'rule_text must be 500 characters or less' }, { status: 400 })
+      }
+      updateData.rule_text = rule_text.trim()
+    }
+    
+    if (Object.keys(updateData).length === 0) {
+      return NextResponse.json({ error: 'No valid fields to update' }, { status: 400 })
     }
 
     const { data, error } = await supabase
       .from('smart_rules')
-      .update({ is_active })
+      .update(updateData)
       .eq('id', params.id)
       .eq('user_id', user.id)
       .select()

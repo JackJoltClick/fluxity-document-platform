@@ -67,6 +67,8 @@ export default function SmartRulesPage() {
   const [showExamples, setShowExamples] = useState(false)
   const [successMessage, setSuccessMessage] = useState('')
   const [authToken, setAuthToken] = useState<string | null>(null)
+  const [editingRule, setEditingRule] = useState<string | null>(null)
+  const [editText, setEditText] = useState('')
   const queryClient = useQueryClient()
 
   // Get auth token on mount
@@ -159,6 +161,30 @@ export default function SmartRulesPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['smart-rules'] })
+    }
+  })
+
+  const updateRuleMutation = useMutation({
+    mutationFn: async ({ id, rule_text }: { id: string; rule_text: string }) => {
+      if (!authToken) throw new Error('Not authenticated')
+      
+      const response = await fetch(`/api/smart-rules/${id}`, {
+        method: 'PATCH',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`
+        },
+        body: JSON.stringify({ rule_text })
+      })
+      if (!response.ok) throw new Error('Failed to update rule')
+      return response.json()
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['smart-rules'] })
+      setEditingRule(null)
+      setEditText('')
+      setSuccessMessage('Rule updated successfully!')
+      setTimeout(() => setSuccessMessage(''), 3000)
     }
   })
 
@@ -326,47 +352,102 @@ export default function SmartRulesPage() {
                       >
                         <div className="flex items-start justify-between gap-4">
                           <div className="flex-1">
-                            <p className="text-gray-900 leading-relaxed">
-                              "{rule.rule_text}"
-                            </p>
-                            <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
-                              <span>Created {new Date(rule.created_at).toLocaleDateString()}</span>
-                              {rule.usage_count !== undefined && (
-                                <span>Applied {rule.usage_count} times</span>
-                              )}
+                            {editingRule === rule.id ? (
+                              <div className="space-y-3">
+                                <textarea
+                                  value={editText}
+                                  onChange={(e) => setEditText(e.target.value)}
+                                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                  rows={3}
+                                  autoFocus
+                                />
+                                <div className="flex gap-2">
+                                  <button
+                                    onClick={() => {
+                                      if (editText.trim()) {
+                                        updateRuleMutation.mutate({ 
+                                          id: rule.id, 
+                                          rule_text: editText.trim() 
+                                        })
+                                      }
+                                    }}
+                                    disabled={!editText.trim() || updateRuleMutation.isPending}
+                                    className="px-3 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 disabled:opacity-50"
+                                  >
+                                    {updateRuleMutation.isPending ? 'Saving...' : 'Save'}
+                                  </button>
+                                  <button
+                                    onClick={() => {
+                                      setEditingRule(null)
+                                      setEditText('')
+                                    }}
+                                    className="px-3 py-1 bg-gray-200 text-gray-700 rounded text-sm hover:bg-gray-300"
+                                  >
+                                    Cancel
+                                  </button>
+                                </div>
+                              </div>
+                            ) : (
+                              <>
+                                <p className="text-gray-900 leading-relaxed">
+                                  "{rule.rule_text}"
+                                </p>
+                                <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
+                                  <span>Created {new Date(rule.created_at).toLocaleDateString()}</span>
+                                  {rule.usage_count !== undefined && (
+                                    <span>Applied {rule.usage_count} times</span>
+                                  )}
+                                </div>
+                              </>
+                            )}
+                          </div>
+
+                          {editingRule !== rule.id && (
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={() => toggleRuleMutation.mutate({ 
+                                  id: rule.id, 
+                                  is_active: !rule.is_active 
+                                })}
+                                disabled={toggleRuleMutation.isPending}
+                                className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+                                  rule.is_active
+                                    ? 'bg-green-100 text-green-700 hover:bg-green-200'
+                                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                }`}
+                              >
+                                {rule.is_active ? 'Active' : 'Inactive'}
+                              </button>
+
+                              <button
+                                onClick={() => {
+                                  setEditingRule(rule.id)
+                                  setEditText(rule.rule_text)
+                                }}
+                                className="text-blue-600 hover:text-blue-700 p-1"
+                                title="Edit rule"
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                </svg>
+                              </button>
+
+                              <button
+                                onClick={() => {
+                                  if (confirm(`Delete rule: "${rule.rule_text}"?`)) {
+                                    deleteMutation.mutate(rule.id)
+                                  }
+                                }}
+                                disabled={deleteMutation.isPending}
+                                className="text-red-600 hover:text-red-700 p-1"
+                                title="Delete rule"
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                              </button>
                             </div>
-                          </div>
-
-                          <div className="flex items-center gap-2">
-                            <button
-                              onClick={() => toggleRuleMutation.mutate({ 
-                                id: rule.id, 
-                                is_active: !rule.is_active 
-                              })}
-                              disabled={toggleRuleMutation.isPending}
-                              className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
-                                rule.is_active
-                                  ? 'bg-green-100 text-green-700 hover:bg-green-200'
-                                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                              }`}
-                            >
-                              {rule.is_active ? 'Active' : 'Inactive'}
-                            </button>
-
-                            <button
-                              onClick={() => {
-                                if (confirm(`Delete rule: "${rule.rule_text}"?`)) {
-                                  deleteMutation.mutate(rule.id)
-                                }
-                              }}
-                              disabled={deleteMutation.isPending}
-                              className="text-red-600 hover:text-red-700 p-1"
-                            >
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                              </svg>
-                            </button>
-                          </div>
+                          )}
                         </div>
                       </div>
                     ))}
