@@ -57,6 +57,8 @@ export const AccountingField: React.FC<AccountingFieldProps> = ({
         const processedValue = type === 'number' ? parseFloat(editValue) || 0 : editValue
         await onEdit(fieldKey, processedValue)
         setIsEditing(false)
+        // Update the edit value to ensure it shows the saved value
+        setEditValue(processedValue.toString())
       } catch (error) {
         console.error('Error saving field:', error)
         // Keep editing mode open on error

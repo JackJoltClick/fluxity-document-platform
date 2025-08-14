@@ -161,12 +161,47 @@ export async function PATCH(
       )
     }
 
-    // Sanitize and prepare update data
-    const sanitizedUpdateData = Object.keys(validatedData).reduce((obj, key) => {
-      const value = validatedData[key as keyof typeof validatedData]
-      obj[key] = sanitizeAccountingValue(key, value)
-      return obj
-    }, {} as Record<string, any>)
+    // Check if we're updating fields that should be in extracted_data.fields
+    const fieldKeys = Object.keys(validatedData)
+    const isAccountingFieldUpdate = fieldKeys.some(key => 
+      ['gl_account', 'cost_center', 'tax_code', 'invoicing_party', 'supplier_invoice_id_by_invcg_party', 
+       'document_date', 'posting_date', 'invoice_gross_amount', 'supplier_invoice_item_text',
+       'document_currency'].includes(key) ||
+      !['accounting_status', 'requires_review', 'vendor_id', 'client_schema_id'].includes(key)
+    )
+
+    let sanitizedUpdateData: Record<string, any> = {}
+
+    if (isAccountingFieldUpdate && currentDocument.extracted_data?.fields) {
+      // Update nested fields in extracted_data.fields
+      const updatedFields = { ...currentDocument.extracted_data.fields }
+      
+      Object.keys(validatedData).forEach(key => {
+        const value = validatedData[key as keyof typeof validatedData]
+        const sanitizedValue = sanitizeAccountingValue(key, value)
+        
+        // Update the nested field value (preserve confidence if it exists)
+        if (typeof updatedFields[key] === 'object' && updatedFields[key] !== null) {
+          updatedFields[key] = { ...updatedFields[key], value: sanitizedValue }
+        } else {
+          updatedFields[key] = { value: sanitizedValue, confidence: 1.0 }
+        }
+      })
+
+      sanitizedUpdateData = {
+        extracted_data: {
+          ...currentDocument.extracted_data,
+          fields: updatedFields
+        }
+      }
+    } else {
+      // Regular top-level field update
+      sanitizedUpdateData = Object.keys(validatedData).reduce((obj, key) => {
+        const value = validatedData[key as keyof typeof validatedData]
+        obj[key] = sanitizeAccountingValue(key, value)
+        return obj
+      }, {} as Record<string, any>)
+    }
 
     // Add updated timestamp
     sanitizedUpdateData.updated_at = new Date().toISOString()
