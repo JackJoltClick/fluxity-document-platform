@@ -142,14 +142,24 @@ export function DynamicAccountingFields({
     const validFields = fields.filter(field => {
       const fieldKey = typeof field === 'string' ? field : field.key
       const fieldData = accountingFields[fieldKey]
-      return fieldData && typeof fieldData.confidence === 'number'
+      
+      // Check if we have confidence data in various formats
+      if (fieldData && typeof fieldData === 'object' && 'confidence' in fieldData) {
+        return typeof fieldData.confidence === 'number'
+      }
+      return false
     })
     
     if (validFields.length === 0) return 0.5
     
     const totalConfidence = validFields.reduce((sum, field) => {
       const fieldKey = typeof field === 'string' ? field : field.key
-      return sum + (accountingFields[fieldKey]?.confidence || 0)
+      const fieldData = accountingFields[fieldKey]
+      
+      if (fieldData && typeof fieldData === 'object' && 'confidence' in fieldData) {
+        return sum + (fieldData.confidence || 0)
+      }
+      return sum
     }, 0)
     
     return totalConfidence / validFields.length
@@ -262,33 +272,24 @@ export function DynamicAccountingFields({
         >
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {group.fields.map((field) => {
-              // SIMPLIFIED: Just get the damn value
+              // SIMPLIFIED: All data now comes in the same format
               let value = null;
+              let confidence = 0.5;
               
-              // Try different places the value might be
-              if (accountingFields[field.key]) {
+              // All fields are now in accountingFields with value/confidence structure
+              if (accountingFields && accountingFields[field.key]) {
                 const fieldData = accountingFields[field.key];
-                if (typeof fieldData === 'object' && fieldData.value !== undefined) {
+                
+                // Unified structure: always { value: x, confidence: y }
+                if (typeof fieldData === 'object' && fieldData !== null && 'value' in fieldData) {
                   value = fieldData.value;
-                } else if (typeof fieldData === 'string' || typeof fieldData === 'number') {
-                  value = fieldData;
+                  confidence = fieldData.confidence || 0.5;
                 } else {
-                  value = JSON.stringify(fieldData); // Show what we're actually getting
+                  // Fallback for any legacy data
+                  value = fieldData;
+                  confidence = 0.5;
                 }
-              } else if (documentData[field.key] !== undefined) {
-                value = documentData[field.key];
               }
-              
-              // Debug log to see what the hell we're getting
-              if (field.key === 'invoicing_party' || field.key === 'document_date') {
-                console.log(`🔍 ${field.key}:`, {
-                  raw: accountingFields[field.key],
-                  documentValue: documentData[field.key],
-                  finalValue: value
-                });
-              }
-              
-              const confidence = 0.5 // Fuck it, just use 50% for now
               
               // Special handling for selectors
               if (field.component === 'company-selector') {

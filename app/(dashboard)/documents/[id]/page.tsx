@@ -87,24 +87,38 @@ function DocumentDetailsContent() {
 
   // Determine if using dynamic schema or legacy accounting fields
   const isUsingDynamicSchema = !!(document?.client_schema_id && clientSchema)
-  const hasClientFields = !!(document?.extracted_data?.client_fields)
   
   // Debug logging to see what data we have
   console.log('🔍 Document Data Debug:', {
     documentId: document?.id,
     hasExtractedData: !!document?.extracted_data,
     extractedDataKeys: document?.extracted_data ? Object.keys(document.extracted_data) : [],
-    hasAccountingFields: !!document?.extracted_data?.accounting_fields,
-    accountingFieldsKeys: document?.extracted_data?.accounting_fields ? Object.keys(document.extracted_data.accounting_fields) : [],
-    sampleField: document?.extracted_data?.accounting_fields?.invoicing_party,
-    directInvoicingParty: document?.invoicing_party,
+    hasFields: !!document?.extracted_data?.fields,
+    fieldKeys: document?.extracted_data?.fields ? Object.keys(document.extracted_data.fields).slice(0, 5) : [],
+    metadata: document?.extracted_data?.metadata,
     extractionMethod: document?.extraction_method
   })
   
-  // Get fields data based on schema type
-  const fieldsData = isUsingDynamicSchema && hasClientFields 
-    ? document?.extracted_data?.client_fields || {}
-    : document?.extracted_data?.accounting_fields || {}
+  // UNIFIED APPROACH: All data is now in extracted_data.fields
+  let fieldsData: Record<string, any> = {}
+  
+  if (document?.extracted_data) {
+    // New unified structure
+    if (document.extracted_data.fields) {
+      fieldsData = document.extracted_data.fields
+    }
+    // Fallback for old data structure (backwards compatibility)
+    else if (document.extracted_data.client_fields) {
+      fieldsData = document.extracted_data.client_fields
+    }
+    else if (document.extracted_data.accounting_fields) {
+      fieldsData = document.extracted_data.accounting_fields
+    }
+    else {
+      // Very old format - direct fields
+      fieldsData = document.extracted_data
+    }
+  }
   
   // Helper to get field value and confidence
   const getFieldData = (fieldName: string) => {
@@ -304,360 +318,257 @@ function DocumentDetailsContent() {
   })
 
   return (
-    <div className="space-y-8">
-      <PageHeader
-        title={document.filename}
-        subtitle={
-          isUsingDynamicSchema && clientSchema
-            ? `Schema: ${clientSchema.name} (${clientSchema.columns.length} columns)`
-            : document.extraction_method === 'dynamic-schema-mapping'
-            ? 'Dynamic Schema Processing'
-            : 'Legacy Accounting Fields (21 columns)'
-        }
-        breadcrumb={{
-          label: 'Back to Documents',
-          href: '/documents'
-        }}
-        primaryAction={{
-          label: 'View File',
-          href: document.file_url
-        }}
-        actions={
-          <div className="flex items-center space-x-4">
-            <StatusBadge status={document.status} />
-            {document.accounting_status && (
-              <AccountingStatusBadge status={document.accounting_status} />
-            )}
-            {isUsingDynamicSchema && (
-              <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full font-medium">
-                Dynamic Schema
-              </span>
-            )}
-            <CostDisplay 
-              cost={document.extraction_cost ?? null} 
-              method={document.extraction_method ?? null}
-              className="text-sm"
-            />
-            <span className="text-xs text-gray-400">
-              Updated: {new Date(document.updated_at || document.created_at).toLocaleTimeString()}
-            </span>
-          </div>
-        }
-      />
-
-      {/* Simple Mapping Mode Warning - Context aware */}
-      <SimpleMappingWarning context="accounting" dismissible={true} />
-
-      {/* Processing Progress */}
-      {(document.status === 'pending' || document.status === 'processing' || document.status === 'queued') && (
-        <ProcessingProgress
-          status={document.status === 'queued' ? 'processing' : document.status as 'pending' | 'processing'}
-          progress={document.status === 'pending' ? 5 : document.status === 'queued' ? 25 : 50}
-          infoText={document.status === 'queued' ? 'Document queued for Lambda processing' : undefined}
-        />
-      )}
-
-      {/* Error State with Retry */}
-      {document.status === 'failed' && (
-        <ProcessingProgress
-          status="failed"
-          progress={100}
-          infoText={document.error_message || undefined}
-          onRetry={retryProcessing}
-          retrying={retryMutation.isPending}
-        />
-      )}
-
-      {/* Multi-Model Extraction Info (if available) */}
-      {document.status === 'completed' && document.extraction_models && document.extraction_models.length > 0 && (
-        <div className="bg-blue-50 rounded-lg border border-blue-200 p-4">
-          <div className="flex items-start">
-            <div className="flex-shrink-0">
-              <CogIcon className="h-5 w-5 text-blue-400" aria-hidden="true" />
-            </div>
-            <div className="ml-3 flex-1">
-              <h3 className="text-sm font-medium text-blue-800">
-                Multi-Model Extraction
-              </h3>
-              <div className="mt-2 text-sm text-blue-700">
-                <p>
-                  Extracted using: {document.extraction_models.join(' + ')}
-                  {document.overall_confidence && (
-                    <span className="ml-2">
-                      • Overall confidence: {(document.overall_confidence * 100).toFixed(1)}%
-                    </span>
-                  )}
-                </p>
-                {document.validation_errors && document.validation_errors.length > 0 && (
-                  <p className="mt-1 text-orange-700">
-                    ⚠️ {document.validation_errors.length} validation {document.validation_errors.length === 1 ? 'issue' : 'issues'} found
-                  </p>
-                )}
+    <div className="min-h-screen bg-gray-50">
+      {/* Streamlined Header */}
+      <div className="bg-white border-b border-gray-200 sticky top-0 z-10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="py-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-4">
+                <a href="/documents" className="text-gray-500 hover:text-gray-700">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                  </svg>
+                </a>
+                <div>
+                  <h1 className="text-xl font-semibold text-gray-900">{document.filename}</h1>
+                  <div className="flex items-center mt-1 space-x-3 text-sm text-gray-500">
+                    <StatusBadge status={document.status} />
+                    {document.accounting_status && (
+                      <AccountingStatusBadge status={document.accounting_status} />
+                    )}
+                    <span>•</span>
+                    <span>{new Date(document.updated_at || document.created_at).toLocaleDateString()}</span>
+                    {document.extraction_cost && (
+                      <>
+                        <span>•</span>
+                        <span>${document.extraction_cost.toFixed(3)}</span>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-center space-x-3">
+                <a
+                  href={document.file_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center px-3 py-1.5 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+                >
+                  <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                  </svg>
+                  View Original
+                </a>
+                <ExcelExportButton
+                  document={document}
+                  variant="primary"
+                  size="sm"
+                />
               </div>
             </div>
           </div>
         </div>
-      )}
+      </div>
 
-      {/* Accounting Overview */}
-      {document.status === 'completed' && (
-        <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
-          <div className="px-8 py-6 border-b border-gray-100">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-2xl font-light text-gray-900 tracking-tight">Accounting Status</h2>
-                <p className="mt-1 text-sm text-gray-500">
-                  {isAccountingReady 
-                    ? 'This document is ready for export to your accounting system'
-                    : needsReview || document.requires_review
-                    ? 'This document requires review before export'
-                    : 'Accounting fields are being processed'
-                  }
-                </p>
-              </div>
-              <div className="flex items-center space-x-4">
-                <ConfidenceIndicator 
-                  confidence={document.overall_confidence || overallConfidence} 
-                  variant="bar"
-                  className="w-48"
-                />
-              </div>
-            </div>
-            
-            {/* Context-specific warning for high confidence scores */}
-            {overallConfidence > 0.8 && (
-              <div className="mt-4">
-                <SimpleMappingWarning context="confidence" dismissible={true} className="text-sm" />
-              </div>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+
+        {/* Processing Status */}
+        {(document.status === 'pending' || document.status === 'processing' || document.status === 'queued' || document.status === 'failed') && (
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+            {document.status === 'failed' ? (
+              <ProcessingProgress
+                status="failed"
+                progress={100}
+                infoText={document.error_message || undefined}
+                onRetry={retryProcessing}
+                retrying={retryMutation.isPending}
+              />
+            ) : (
+              <ProcessingProgress
+                status={document.status === 'queued' ? 'processing' : document.status as 'pending' | 'processing'}
+                progress={document.status === 'pending' ? 5 : document.status === 'queued' ? 25 : 50}
+                infoText={document.status === 'queued' ? 'Document queued for Lambda processing' : undefined}
+              />
             )}
           </div>
-          
-          <div className="p-8">
+        )}
+
+        {/* Quick Actions Bar - Only for completed documents */}
+        {document.status === 'completed' && (
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
             <div className="flex items-center justify-between">
-              <div className="grid grid-cols-3 gap-8">
-                <div>
-                  <div className="text-sm font-medium text-gray-500">Status</div>
-                  <div className="mt-1">
-                    {document.accounting_status ? (
-                      <AccountingStatusBadge status={document.accounting_status} />
-                    ) : (
-                      <span className="text-sm text-gray-500">Processing...</span>
-                    )}
-                  </div>
+              <div className="flex items-center space-x-6">
+                <div className="flex items-center space-x-2">
+                  <span className="text-sm text-gray-500">Confidence:</span>
+                  <ConfidenceIndicator 
+                    confidence={document.overall_confidence || overallConfidence} 
+                    variant="badge"
+                  />
                 </div>
-                <div>
-                  <div className="text-sm font-medium text-gray-500">Overall Confidence</div>
-                  <div className="mt-1">
-                    <ConfidenceIndicator confidence={overallConfidence} variant="badge" />
-                  </div>
+                <div className="flex items-center space-x-2">
+                  <span className="text-sm text-gray-500">Review Status:</span>
+                  {needsReview ? (
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                      Needs Review
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                      Approved
+                    </span>
+                  )}
                 </div>
-                <div>
-                  <div className="text-sm font-medium text-gray-500">Requires Review</div>
-                  <div className="mt-1">
-                    {needsReview ? (
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                        <ExclamationTriangleIcon className="w-3 h-3 mr-1" />
-                        Yes
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                        <CheckCircleIcon className="w-3 h-3 mr-1" />
-                        No
-                      </span>
-                    )}
+                {document.extraction_method && (
+                  <div className="flex items-center space-x-2">
+                    <span className="text-sm text-gray-500">Method:</span>
+                    <span className="text-sm font-medium text-gray-700">{document.extraction_method}</span>
                   </div>
-                </div>
+                )}
               </div>
               
-              <div className="flex items-center space-x-3">
-                {/* Export Button - Always available for completed documents */}
-                <ExcelExportButton
-                  document={document}
-                  variant="outline"
-                  size="md"
-                  onExportStart={() => console.log('📤 Starting Excel export for document:', document.id)}
-                  onExportComplete={() => console.log('✅ Excel export completed successfully')}
-                  onExportError={(error) => console.error('❌ Excel export failed:', error)}
-                />
-                
+              <div className="flex items-center space-x-2">
                 <button
                   onClick={reprocessAllFields}
                   disabled={reprocessMutation.isPending}
-                  className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+                  className="inline-flex items-center px-3 py-1.5 border border-gray-300 text-sm rounded-md text-gray-700 bg-white hover:bg-gray-50"
                 >
-                  <ArrowPathIcon className={`w-4 h-4 mr-2 ${reprocessMutation.isPending ? 'animate-spin' : ''}`} />
-                  Re-process All
+                  <ArrowPathIcon className={`w-4 h-4 mr-1.5 ${reprocessMutation.isPending ? 'animate-spin' : ''}`} />
+                  Reprocess
                 </button>
                 
                 {!isAccountingReady && (
                   <button
                     onClick={markReadyForExport}
                     disabled={updateFieldMutation.isPending}
-                    className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50"
+                    className="inline-flex items-center px-3 py-1.5 border border-transparent text-sm rounded-md text-white bg-green-600 hover:bg-green-700"
                   >
-                    <CheckCircleIcon className="w-4 h-4 mr-2" />
-                    Mark Ready for Export
+                    <CheckCircleIcon className="w-4 h-4 mr-1.5" />
+                    Mark Ready
                   </button>
                 )}
                 
-                <button
-                  onClick={markRequiresReview}
-                  disabled={updateFieldMutation.isPending}
-                  className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
-                >
-                  <ExclamationTriangleIcon className="w-4 h-4 mr-2" />
-                  Requires Review
-                </button>
+                {!needsReview && (
+                  <button
+                    onClick={markRequiresReview}
+                    disabled={updateFieldMutation.isPending}
+                    className="inline-flex items-center px-3 py-1.5 border border-gray-300 text-sm rounded-md text-gray-700 bg-white hover:bg-gray-50"
+                  >
+                    Flag for Review
+                  </button>
+                )}
               </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Full Text Section - Full Width */}
-      {document.status === 'completed' && document.full_text && (
-        <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-100 bg-gray-50">
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-medium text-gray-900 flex items-center">
-                <DocumentTextIcon className="w-5 h-5 mr-2 text-blue-600" />
-                Extracted Document Text
-              </h3>
-              <span className="text-sm text-gray-500">
-                {document.full_text.length} characters
-              </span>
-            </div>
-          </div>
-          <div className="p-8">
-            <div className="prose prose-sm max-w-none">
-              <div className="bg-gray-50 rounded-lg p-6 border border-gray-200">
-                <div className="text-sm leading-relaxed text-gray-700 whitespace-pre-line font-sans">
-                  {document.full_text.split('\n').map((line, index) => (
-                    <div key={index} className={`${line.trim() === '' ? 'h-4' : 'mb-1'}`}>
-                      {line.trim() !== '' && (
-                        <span className="block hover:bg-yellow-50 px-2 -mx-2 py-0.5 rounded transition-colors">
-                          {line}
-                        </span>
-                      )}
-                    </div>
-                  ))}
+        {/* Main Content Grid */}
+        {document.status === 'completed' && (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Left Column - Document Info & Extracted Text */}
+            <div className="lg:col-span-1 space-y-6">
+              {/* Document Info Card */}
+              <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+                <div className="px-4 py-3 border-b border-gray-100">
+                  <h3 className="text-sm font-semibold text-gray-900">Document Information</h3>
                 </div>
-              </div>
-            </div>
-            <div className="mt-4 flex items-center justify-between">
-              <button
-                onClick={() => navigator.clipboard.writeText(document.full_text || '')}
-                className="inline-flex items-center px-3 py-1.5 border border-gray-300 text-xs font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-              >
-                <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                </svg>
-                Copy Text
-              </button>
-              <span className="text-xs text-gray-500">
-                Extracted with {document.extraction_method || 'AI Processing'}
-              </span>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Two-Column Layout: Document Preview + Accounting Fields */}
-      {document.status === 'completed' && (
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
-          {/* Document Preview - Left 40% */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Document Info */}
-            <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
-              <div className="px-6 py-4 border-b border-gray-100">
-                <h3 className="text-lg font-medium text-gray-900 flex items-center">
-                  <DocumentTextIcon className="w-5 h-5 mr-2" />
-                  Document Preview
-                </h3>
-              </div>
-              <div className="p-6">
-                <div className="space-y-4">
-                  <div className="flex justify-between">
-                    <dt className="text-sm text-gray-600">Filename</dt>
-                    <dd className="text-sm text-gray-900 font-medium">{document.filename}</dd>
-                  </div>
-                  <div className="flex justify-between">
-                    <dt className="text-sm text-gray-600">Source</dt>
-                    <dd className="text-sm text-gray-900">
-                      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${
-                        document.source === 'email' 
-                          ? 'bg-blue-50 text-blue-700 border-blue-200' 
-                          : 'bg-gray-50 text-gray-700 border-gray-200'
-                      }`}>
-                        {document.source === 'email' ? '📧 Email' : '📤 Upload'}
-                      </span>
+                <div className="p-4 space-y-3">
+                  <div>
+                    <dt className="text-xs text-gray-500">Source</dt>
+                    <dd className="mt-1 text-sm text-gray-900">
+                      {document.source === 'email' ? '📧 Email' : '📤 Manual Upload'}
                     </dd>
                   </div>
-                  <div className="flex justify-between">
-                    <dt className="text-sm text-gray-600">
-                      {document.source === 'email' ? 'Received' : 'Uploaded'}
-                    </dt>
-                    <dd className="text-sm text-gray-900">
+                  <div>
+                    <dt className="text-xs text-gray-500">Created</dt>
+                    <dd className="mt-1 text-sm text-gray-900">
                       {new Date(document.created_at).toLocaleString()}
                     </dd>
                   </div>
-                  {document.extraction_method && (
-                    <div className="flex justify-between">
-                      <dt className="text-sm text-gray-600">Extraction Method</dt>
-                      <dd className="text-sm text-gray-900">{document.extraction_method}</dd>
+                  {document.extraction_models && document.extraction_models.length > 0 && (
+                    <div>
+                      <dt className="text-xs text-gray-500">AI Models Used</dt>
+                      <dd className="mt-1 text-sm text-gray-900">
+                        {document.extraction_models.join(', ')}
+                      </dd>
                     </div>
                   )}
                 </div>
-                
-                <div className="mt-6">
-                  <a
-                    href={document.file_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                  >
-                    <DocumentTextIcon className="w-4 h-4 mr-2" />
-                    View Original Document
-                  </a>
-                </div>
               </div>
+
+              {/* Vendor Matching */}
+              {fieldsData && (
+                <VendorMatchingSection 
+                  documentId={documentId}
+                  supplierName={
+                    fieldsData.supplier_name?.value || 
+                    fieldsData.invoicing_party?.value || 
+                    fieldsData.vendor_name?.value as string
+                  }
+                  onMatchConfirmed={(match) => {
+                    console.log('Vendor match confirmed:', match)
+                  }}
+                />
+              )}
+
+              {/* Extracted Text - Collapsible */}
+              {document.full_text && (
+                <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+                  <details className="group">
+                    <summary className="px-4 py-3 border-b border-gray-100 cursor-pointer hover:bg-gray-50 flex items-center justify-between">
+                      <div className="flex items-center">
+                        <DocumentTextIcon className="w-4 h-4 mr-2 text-gray-400" />
+                        <h3 className="text-sm font-semibold text-gray-900">Extracted Text</h3>
+                        <span className="ml-2 text-xs text-gray-500">({document.full_text.length} chars)</span>
+                      </div>
+                      <svg className="w-4 h-4 text-gray-400 group-open:rotate-180 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </summary>
+                    <div className="p-4">
+                      <div className="bg-gray-50 rounded p-3 max-h-96 overflow-y-auto">
+                        <pre className="text-xs text-gray-700 whitespace-pre-wrap font-mono">
+                          {document.full_text}
+                        </pre>
+                      </div>
+                      <button
+                        onClick={() => navigator.clipboard.writeText(document.full_text || '')}
+                        className="mt-3 inline-flex items-center px-2.5 py-1 border border-gray-300 text-xs rounded text-gray-700 bg-white hover:bg-gray-50"
+                      >
+                        <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        Copy
+                      </button>
+                    </div>
+                  </details>
+                </div>
+              )}
+
+              {/* AI Justification Report */}
+              {document.extracted_data && (
+                <JustificationReport
+                  report={(document.extracted_data as any).justification_report}
+                  documentMetadata={(document.extracted_data as any).document_metadata}
+                  validationFlags={(document.extracted_data as any).validation_flags}
+                />
+              )}
             </div>
 
-            {/* Vendor Matching Section */}
-            {document.extracted_data && (
-              <VendorMatchingSection 
-                documentId={documentId}
-                supplierName={document.extracted_data.supplier_name?.value as string}
-                onMatchConfirmed={(match) => {
-                  console.log('Vendor match confirmed:', match)
-                }}
+            {/* Right Column - Accounting Fields (2/3 width) */}
+            <div className="lg:col-span-2">
+              <DynamicAccountingFields
+                accountingFields={fieldsData}
+                documentData={document}
+                updateAccountingField={updateAccountingField}
+                updateFieldMutation={updateFieldMutation}
+                clientSchema={clientSchema}
+                isUsingDynamicSchema={isUsingDynamicSchema}
+                schemaLoading={schemaLoading}
               />
-            )}
-
-            {/* AI Justification Report */}
-            {document.extracted_data && (
-              <JustificationReport
-                report={(document.extracted_data as any).justification_report}
-                documentMetadata={(document.extracted_data as any).document_metadata}
-                validationFlags={(document.extracted_data as any).validation_flags}
-              />
-            )}
+            </div>
           </div>
-
-          {/* Accounting Fields - Right 60% */}
-          <div className="lg:col-span-3">
-            <DynamicAccountingFields
-              accountingFields={fieldsData}
-              documentData={document}
-              updateAccountingField={updateAccountingField}
-              updateFieldMutation={updateFieldMutation}
-              clientSchema={clientSchema}
-              isUsingDynamicSchema={isUsingDynamicSchema}
-              schemaLoading={schemaLoading}
-            />
-          </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   )
 }

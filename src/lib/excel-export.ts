@@ -237,17 +237,34 @@ export class ExcelExportService {
 
       // Add field values
       const fieldValues = dataColumns.map(fieldName => {
-        if (isLegacy) {
-          // For legacy, get from accounting_fields in extracted_data
-          const accountingFields = doc.extracted_data?.accounting_fields || {}
-          const fieldData = accountingFields[fieldName]
-          // Use the value from extraction, or fallback to document field
-          return this.formatCellValue(fieldData?.value ?? doc[fieldName as keyof DocumentWithAccounting])
+        // UNIFIED: All fields are now in extracted_data.fields
+        let fieldsData: Record<string, any> = {}
+        
+        // Try new unified structure first
+        if (doc.extracted_data?.fields) {
+          fieldsData = doc.extracted_data.fields
+        }
+        // Fallback for old data structures
+        else if (isLegacy && doc.extracted_data?.accounting_fields) {
+          fieldsData = doc.extracted_data.accounting_fields
+        }
+        else if (!isLegacy && doc.extracted_data?.client_fields) {
+          fieldsData = doc.extracted_data.client_fields
+        }
+        else if (doc.extracted_data) {
+          fieldsData = doc.extracted_data
+        }
+        
+        const fieldData = fieldsData[fieldName]
+        
+        // Handle both object with value/confidence and direct values
+        if (typeof fieldData === 'object' && fieldData && 'value' in fieldData) {
+          return this.formatCellValue(fieldData.value)
+        } else if (isLegacy) {
+          // For legacy, fallback to document field if no extracted data
+          return this.formatCellValue(fieldData ?? doc[fieldName as keyof DocumentWithAccounting])
         } else {
-          // Dynamic schema fields are in extracted_data.client_fields
-          const clientFields = doc.extracted_data?.client_fields || {}
-          const fieldData = clientFields[fieldName]
-          return this.formatCellValue(fieldData?.value)
+          return this.formatCellValue(fieldData)
         }
       })
 
@@ -256,15 +273,21 @@ export class ExcelExportService {
       // Add confidence scores if requested
       if (includeConfidenceScores) {
         const confidenceValues = dataColumns.map(fieldName => {
-          if (isLegacy) {
-            const accountingFields = doc.extracted_data?.accounting_fields || {}
-            const fieldData = accountingFields[fieldName]
-            return fieldData?.confidence || ''
-          } else {
-            const clientFields = doc.extracted_data?.client_fields || {}
-            const fieldData = clientFields[fieldName]
-            return fieldData?.confidence || ''
+          // UNIFIED: Get fields from same location as values
+          let fieldsData: Record<string, any> = {}
+          
+          if (doc.extracted_data?.fields) {
+            fieldsData = doc.extracted_data.fields
           }
+          else if (isLegacy && doc.extracted_data?.accounting_fields) {
+            fieldsData = doc.extracted_data.accounting_fields
+          }
+          else if (!isLegacy && doc.extracted_data?.client_fields) {
+            fieldsData = doc.extracted_data.client_fields
+          }
+          
+          const fieldData = fieldsData[fieldName]
+          return fieldData?.confidence || ''
         })
         row.push(...confidenceValues)
       }
