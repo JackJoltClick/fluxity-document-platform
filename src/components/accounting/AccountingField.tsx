@@ -3,6 +3,7 @@
 import React, { useState } from 'react'
 import { cn } from '@/src/lib/utils'
 import { ConfidenceIndicator } from './ConfidenceIndicator'
+import { FieldValidationStatus } from './FieldValidationStatus'
 import { 
   PencilIcon,
   ArrowPathIcon,
@@ -15,6 +16,8 @@ export interface AccountingFieldProps {
   value: string | number | null
   confidence: number
   fieldKey: string
+  documentId?: string
+  showValidation?: boolean
   editable?: boolean
   type?: 'text' | 'number' | 'date' | 'select' | 'textarea'
   options?: Array<{ value: string; label: string }>
@@ -32,6 +35,8 @@ export const AccountingField: React.FC<AccountingFieldProps> = ({
   value,
   confidence,
   fieldKey,
+  documentId,
+  showValidation = false,
   editable = true,
   type = 'text',
   options = [],
@@ -227,6 +232,20 @@ export const AccountingField: React.FC<AccountingFieldProps> = ({
           <ArrowPathIcon className="w-4 h-4 animate-spin" />
           <span>Updating...</span>
         </div>
+      )}
+      
+      {/* Validation Status */}
+      {showValidation && documentId && !isEditing && (
+        <FieldValidationStatus
+          documentId={documentId}
+          fieldName={fieldKey}
+          extractedValue={value}
+          onAcceptMatch={async (code, name) => {
+            if (onEdit) {
+              await onEdit(fieldKey, code)
+            }
+          }}
+        />
       )}
     </div>
   )

@@ -321,6 +321,12 @@ export function DynamicAccountingFields({
               }
               
               // Regular fields
+              // Check if this field requires list matching
+              const needsValidation = [
+                'invoicing_party', 'gl_account', 'cost_center', 'tax_code',
+                'document_type', 'company_code', 'profit_center'
+              ].includes(field.key);
+              
               return (
                 <AccountingField
                   key={field.key}
@@ -328,6 +334,8 @@ export function DynamicAccountingFields({
                   value={value}
                   confidence={confidence}
                   fieldKey={field.key}
+                  documentId={documentData?.id}
+                  showValidation={needsValidation}
                   type={field.type}
                   options={field.options}
                   required={field.required}
