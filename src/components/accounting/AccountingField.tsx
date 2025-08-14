@@ -147,11 +147,13 @@ export const AccountingField: React.FC<AccountingFieldProps> = ({
           {required && <span className="text-red-500 ml-1">*</span>}
         </label>
         <div className="flex items-center space-x-2">
+          {/* Field-level confidence temporarily disabled - will be re-enabled later
           <ConfidenceIndicator 
             confidence={confidence} 
             variant="badge" 
             size="sm"
           />
+          */}
           {editable && !isEditing && !isLoading && (
             <button
               onClick={handleStartEdit}
@@ -202,10 +204,12 @@ export const AccountingField: React.FC<AccountingFieldProps> = ({
           <div
             className={cn(
               'px-3 py-2 bg-gray-50 border border-gray-200 rounded-md text-sm min-h-[38px] flex items-center',
-              isEmpty && 'text-gray-500 italic',
+              isEmpty && 'text-gray-500 italic'
+              /* Confidence-based styling temporarily disabled
               confidence < 0.5 && 'border-red-200 bg-red-50',
               confidence >= 0.5 && confidence < 0.8 && 'border-yellow-200 bg-yellow-50',
               confidence >= 0.8 && 'border-green-200 bg-green-50'
+              */
             )}
           >
             {displayValue}
