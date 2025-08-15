@@ -8,7 +8,7 @@ import { supabase } from '@/src/lib/supabase/client'
 interface SmartRule {
   id: string
   rule_text: string
-  category: 'gl_assignment' | 'cost_center' | 'extraction_hint' | 'validation'
+  category: 'extraction' | 'assignment' | 'matching'
   is_active: boolean
   created_at: string
   usage_count?: number
@@ -16,53 +16,43 @@ interface SmartRule {
 
 const RULE_CATEGORIES = [
   {
-    id: 'gl_assignment',
-    name: 'GL Assignment',
-    icon: '💰',
-    description: 'Automatically assign GL codes',
+    id: 'extraction',
+    name: 'Extraction',
+    icon: '📍',
+    description: 'How to find and read data',
     examples: [
-      'Amazon invoices go to GL 6200-Cloud-Services',
-      'Office supplies from Staples go to GL 5200-Supplies',
-      'Travel expenses over $500 go to GL 7100-Travel and require approval'
-    ]
-  },
-  {
-    id: 'cost_center',
-    name: 'Cost Centers',
-    icon: '🏢',
-    description: 'Auto-assign cost centers',
-    examples: [
-      'IT equipment goes to Cost Center TECH-001',
-      'Marketing expenses go to Cost Center MKT-100',
-      'NYC office expenses go to Cost Center NYC-001'
-    ]
-  },
-  {
-    id: 'extraction_hint',
-    name: 'Extraction Help',
-    icon: '🎯',
-    description: 'Help AI find data better',
-    examples: [
-      'Invoice totals are always in bold at the bottom right',
+      'Invoice number is always in the top right corner',
+      'Dates are in DD/MM/YYYY format',
       'PO numbers appear in the header after "Reference:"',
       'Line items start after the "Description" column'
     ]
   },
   {
-    id: 'validation',
-    name: 'Data Validation',
-    icon: '✓',
-    description: 'Ensure data quality',
+    id: 'assignment',
+    name: 'Assignment',
+    icon: '✏️',
+    description: 'Direct field overrides',
     examples: [
-      'Dates must be in MM/DD/YYYY format',
-      'All amounts should include tax',
-      'Invoice numbers must start with "INV-"'
+      'If the line item is a wheat based food product then the tax code is always 1GLW',
+      'If amount is over $1000 then approval_required is YES',
+      'If vendor is in California then tax rate is 7.25%'
+    ]
+  },
+  {
+    id: 'matching',
+    name: 'Matching',
+    icon: '🔗',
+    description: 'Business logic with ERP lookups',
+    examples: [
+      'If vendor is JACK0001 then cost center is Human Resources',
+      'If vendor is Amazon then GL account is IT Expenses',
+      'If amount is less than $100 then profit center is Operations'
     ]
   }
 ] as const
 
 export default function SmartRulesPage() {
-  const [selectedCategory, setSelectedCategory] = useState<string>('gl_assignment')
+  const [selectedCategory, setSelectedCategory] = useState<string>('matching')
   const [ruleText, setRuleText] = useState('')
   const [showExamples, setShowExamples] = useState(false)
   const [successMessage, setSuccessMessage] = useState('')
@@ -476,9 +466,9 @@ export default function SmartRulesPage() {
             </div>
             <div className="text-center">
               <div className="text-2xl font-bold text-purple-600">
-                {rules.filter((r: SmartRule) => r.category === 'gl_assignment').length}
+                {rules.filter((r: SmartRule) => r.category === 'matching').length}
               </div>
-              <div className="text-sm text-gray-600">GL Assignment</div>
+              <div className="text-sm text-gray-600">Matching Rules</div>
             </div>
             <div className="text-center">
               <div className="text-2xl font-bold text-orange-600">
