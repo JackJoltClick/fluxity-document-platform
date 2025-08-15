@@ -312,10 +312,17 @@ export default function SmartRulesPage() {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <span className="text-2xl">{category.icon}</span>
-                    <h3 className="text-lg font-semibold text-gray-900">
-                      {category.name} Rules
-                    </h3>
-                    <span className="bg-gray-100 text-gray-600 px-2 py-1 rounded-full text-xs font-medium">
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900">
+                        {category.name} Rules
+                      </h3>
+                      <p className="text-sm text-gray-500 mt-0.5">
+                        {category.id === 'extraction' && 'Tell the AI where to find specific data in your documents'}
+                        {category.id === 'assignment' && 'Force specific field values based on document content'}
+                        {category.id === 'matching' && 'Map extracted data to your ERP codes using business logic'}
+                      </p>
+                    </div>
+                    <span className="bg-gray-100 text-gray-600 px-2 py-1 rounded-full text-xs font-medium ml-auto">
                       {categoryRules.length}
                     </span>
                   </div>
